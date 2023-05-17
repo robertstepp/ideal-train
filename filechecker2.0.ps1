@@ -1,7 +1,10 @@
-function SetPreFilename {
+# Set filename for pretransfer hashes
+function SetPreFilename {    
     $preFilename = (Get-Date -Format yyyyMMdd_HHmm) + "-Pretransfer.hashes.txt"
     return $preFilename
 }
+
+# Get the path to the parent folder
 function Get-ParentScriptFolder {
     $scriptPath = $MyInvocation.PSCommandPath
     $myParentFolder = Split-Path -Path $scriptPath
@@ -23,6 +26,7 @@ Function ComputeHash ($filePath) {
     return $hash.replace("-","")
 }
 
+# Check if the pretransfer file exists and calls ComputeHash via FileList function
 Function CheckPreFile($filePre) {
     if (Test-Path -Path $filePre -PathType Leaf) {        
         FileList('post_transfer')
@@ -33,6 +37,7 @@ Function CheckPreFile($filePre) {
     }
 }
 
+# Gets list of all files in the parent folder
 function FileList ($preOrPost_Transfer, $myFileName) {
     $folderPath = Get-ParentScriptFolder
     $fileList = Get-ChildItem -Path $folderPath -File
