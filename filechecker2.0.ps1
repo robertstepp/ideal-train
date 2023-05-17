@@ -23,21 +23,29 @@ Function ComputeHash ($filePath) {
     return $hash.replace("-","")
 }
 
-Function CheckPreFile {
-    if (Test-Path -Path $file -PathType Leaf) {
-        FileList('pre_transfer')
+Function CheckPreFile($filePre) {
+    if (Test-Path -Path $filePre -PathType Leaf) {        
+        FileList('post_transfer')
     } else {
-        Filelist('post_transfer')
+        $preFile = [String](Get-ParentScriptFolder)+[String]"\"+[String](SetPreFilename)
+        New-Item ($preFile) | Out-Null
+        Filelist 'pre_transfer' $preFile
     }
 }
 
-function FileList ($preOrPost_Transfer) {
+function FileList ($preOrPost_Transfer, $myFileName) {
     $folderPath = Get-ParentScriptFolder
-
     $fileList = Get-ChildItem -Path $folderPath -File
 
     foreach ($file in $fileList) {
-        Write-host $file ~ (ComputeHash($folderPath + "\" + $file))
+        if ($preOrPost_Transfer -eq 'pre_transfer') {
+            $myHash = (ComputeHash($folderPath + "\" + $file))
+            $outString = [String]$file+[String]"~"+[String]$myHash
+            $outString >> $myFileName
+        }
+        elseif ($preOrPost_Transfer -eq 'post_transfer') {
+            #Write-host $file ~(ComputeHash($folderPath + "\" + $file))
+        }
     }
 }
 
@@ -45,6 +53,6 @@ function FileList ($preOrPost_Transfer) {
 $parentFolder = Get-ParentScriptFolder
 $file = "$parentFolder\" + (SetPreFilename)
 
-CheckPreFile
+CheckPreFile($file)
 
  
