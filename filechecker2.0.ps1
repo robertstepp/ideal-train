@@ -1,6 +1,6 @@
 # Set filename for pretransfer hashes
 function SetPreFilename {    
-    $preFilename = (Get-Date -Format yyyyMMdd_HHmm) + "-Pretransfer.hashes.txt"
+    $preFilename = (Get-Date -Format yyyyMMdd_HHmm) + "-Pretransfer.hashes.csv"
     return $preFilename
 }
 
@@ -28,12 +28,20 @@ Function ComputeHash ($filePath) {
 
 # Check if the pretransfer file exists and calls ComputeHash via FileList function
 Function CheckPreFile($filePre) {
-    if (Test-Path -Path $filePre -PathType Leaf) {        
-        FileList('post_transfer')
-    } else {
-        $preFile = [String](Get-ParentScriptFolder)+[String]"\"+[String](SetPreFilename)
-        New-Item ($preFile) | Out-Null
-        Filelist 'pre_transfer' $preFile
+    $preFile = [String](Get-ParentScriptFolder)+[String]"\"+[String](SetPreFilename)
+    try {
+        $scriptDirectory = Split-Path -Path $PSScriptRoot -Parent
+        $filePattern = "*-Pretransfer.hashes.csv"
+        $fileExists = Test-Path -Path (Join-Path -Path $scriptDirectory -ChildPath $filePattern)
+        Write-Host $fileExists
+    }
+    finally {
+        if ($fileExists) {        
+            FileList 'post_transfer' $existingFile
+        } else {        
+            New-Item ($preFile) | Out-Null
+            Filelist 'pre_transfer' $preFile
+        }
     }
 }
 
@@ -41,16 +49,28 @@ Function CheckPreFile($filePre) {
 function FileList ($preOrPost_Transfer, $myFileName) {
     $folderPath = Get-ParentScriptFolder
     $fileList = Get-ChildItem -Path $folderPath -File
-
-    foreach ($file in $fileList) {
-        if ($preOrPost_Transfer -eq 'pre_transfer') {
+    if ($preOrPost_Transfer -eq 'pre_transfer') {
+        "filename,hash">>$myFileName
+        foreach ($file in $fileList) {
             $myHash = (ComputeHash($folderPath + "\" + $file))
             $outString = [String]$file+[String]"~"+[String]$myHash
             $outString >> $myFileName
         }
-        elseif ($preOrPost_Transfer -eq 'post_transfer') {
-            #Write-host $file ~(ComputeHash($folderPath + "\" + $file))
-        }
+    }
+    elseif ($preOrPost_Transfer -eq 'post_transfer') {
+        Import-FileObjects $myFileName
+        #Write-host $file ~(ComputeHash($folderPath + "\" + $file))
+    }
+    
+}
+
+# Import saved CSV
+function Import-FileObjects ($csvFile) {
+    $fileHashPairs = @{}
+    Import-Csv -Path $csvFile -Delimiter "~" | ForEach-Object {
+        $filename = $_.filename
+        $hash = $_.hash
+        $fileHashPairs[$filename] = $hash
     }
 }
 
