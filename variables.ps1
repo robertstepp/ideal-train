@@ -6,3 +6,5 @@ $hashTypes = [ordered]@{
         SHA512  = 128
         MD5     = 32
     }
+
+Write-Debug $hashTypes
