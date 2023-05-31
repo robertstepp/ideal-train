@@ -31,8 +31,10 @@ function Search-InitialFileExists {
         $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath `
             (Get-ChildItem -Path $scriptPath -Recurse -Filter $filePattern | `
             Select-Object -ExpandProperty name)
+            Write-Debug $existingFile
         return $existingFile
     } else {
+        Write-Debug $fileExists
         return $fileExists
     }
 }
@@ -79,6 +81,7 @@ function Set-InitialFileManual {
 # Set filename for pretransfer hashes
 function Initialize-InitialFilename {    
     $preFilename = (Get-Date -Format yyyyMMdd_HHmm) + "-initial.hashes.csv"
+    Write-Debug $preFilename
     return $preFilename
 }
 
@@ -86,14 +89,18 @@ function Initialize-InitialFilename {
 function Initialize-InitialFilePath {
     $parentFolder = Get-ParentScriptFolder
     $initialFilename = Set-InitialFilename
-    Join-Path -Path $parentFolder -ChildPath $initialFilename
+    $initialFilePath = Join-Path -Path $parentFolder -ChildPath $initialFilename
+    Write-Debug $initialFilePath
+    return $initialFilePath
 }
 
 # Main startup
 $initialFile = Search-InitialFileExists
 if ($initialFile -ne $false) {
+    # Stage 2 checking after transfer
     # Check the initial file against files in directory
 } else {
+    # Stage 1 building the initial fiie
     # Build initial file manually/automatically
 }
 
