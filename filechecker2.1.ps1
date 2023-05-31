@@ -25,9 +25,12 @@ $hashTypes = [ordered]@{
 # Look into script directory for an existing initial file
 function Search-InitialFileExists {
     $filePattern = "*-initial.hashes.csv"
-    $fileExists = Test-Path -Path (Join-Path -Path (Get-ParentScriptFolder) -ChildPath $filePattern)
+    $fileExists = Test-Path -Path (Join-Path -Path (Get-ParentScriptFolder) `
+        -ChildPath $filePattern)
     if ($fileExists) {
-        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath (Get-ChildItem -Path $scriptPath -Recurse -Filter $filePattern | Select-Object -ExpandProperty name)
+        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath `
+            (Get-ChildItem -Path $scriptPath -Recurse -Filter $filePattern | `
+            Select-Object -ExpandProperty name)
         return $existingFile
     } else {
         return $fileExists
