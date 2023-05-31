@@ -7,7 +7,20 @@
             the final against initial hashes.
 #>
 
-Import-Module .\variables.ps1
+<# Debug settings
+    No Debug output = SilentlyContinue
+    Debug output = Continue
+#>
+$DebugPreference = 'Continue'
+
+# Hashtable of available hashing algorithms and the lengths
+$hashTypes = [ordered]@{
+        SHA1    = 40
+        SHA256  = 64
+        SHA384  = 96
+        SHA512  = 128
+        MD5     = 32
+    }
 
 # Look into script directory for an existing initial file
 function Search-InitialFileExists {
@@ -19,25 +32,33 @@ function Search-InitialFileExists {
     } else {
         return $fileExists
     }
-    
 }
 
 # Get the path to the parent folder
 function Get-ParentScriptFolder {
     $scriptPath = $MyInvocation.PSCommandPath
     $myParentFolder = Split-Path -Path $scriptPath
+    Write-Debug $myParentFolder
     return $myParentFolder
 }
 
 # Hashes files that are passed
 # Includes hash function as they can change
 function Get-Hashes ($filename, $hashtype) {
-
+    $thisFileHash = Get-FileHash -Path $filename -Algorithm $hashtype
+    Write-Debug $thisFileHash
+    return $thisFileHash
 }
 
 # Identify which hash is being used by hash length
 function Get-HashType ($inputHash) {
-
+    $thisHashType
+    foreach ($key in $hashTypes.Keys) {
+        if ($hashTypes[$key] -eq $inputHash.length) {
+            $thisHashType = $key
+        }
+    }
+    return $thisHashType
 }
 
 # Look through script directory for files to hash and builds the initial file
@@ -73,6 +94,3 @@ if ($initialFile -ne $false) {
     # Build initial file manually/automatically
 }
 
-foreach ($key in $hashTypes.Keys) {
-    write-host $key + $hashTypes.$key
-}
