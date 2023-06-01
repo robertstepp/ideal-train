@@ -13,6 +13,10 @@
 #>
 $DebugPreference = 'Continue'
 
+# Load the necessary .NET assemblies
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
 # Hashtable of available hashing algorithms and the lengths
 $hashTypes = [ordered]@{
         SHA1    = 40
@@ -92,12 +96,7 @@ function Set-InitialFileAutomatic {
 # Gets input from the user on what the hashes should be
 # Usefule when pulling files fromt the internet/local lan
 function Set-InitialFileManual {
-    # Load the necessary .NET assemblies
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
 
-    # Set the initial filename
-    $initialFilename = Initialize-InitialFilePath
     # Create the form
     $manualForm = New-Object System.Windows.Forms.Form
     $manualForm.Text = 'Enter Filename and Hash'
@@ -128,6 +127,9 @@ function Set-InitialFileManual {
     $hashTextBox.Size = New-Object System.Drawing.Size(260,20)
     $manualForm.Controls.Add($hashTextBox)
 
+    # Initialize an array to hold the output
+    $script:output = @()
+
     # Create the 'Add' button
     $addButton = New-Object System.Windows.Forms.Button
     $addButton.Location = New-Object System.Drawing.Point(10,120)
@@ -136,8 +138,15 @@ function Set-InitialFileManual {
     $addButton.Add_Click({
         $filename = $filenameTextBox.Text
         $hash = $hashTextBox.Text
-        $output = "$filename,$hash"
-        Add-Content -Path $initialFilename -Value $output
+
+        # Create a custom object with the file path and hash
+        $obj = New-Object PSObject
+        $obj | Add-Member -MemberType NoteProperty -Name 'FilePath' -Value $filename
+        $obj | Add-Member -MemberType NoteProperty -Name 'Hash' -Value $hash
+
+        # Add the object to the output array
+        $script:output += $obj
+
         $filenameTextBox.Clear()
         $hashTextBox.Clear()
     })
@@ -153,6 +162,9 @@ function Set-InitialFileManual {
 
     # Show the form
     $manualForm.ShowDialog()
+
+    # Write the output array to a CSV file
+    $script:output | Export-Csv -Path (Initialize-InitialFilePath) -NoTypeInformation
 
     # Compare files
     Compare-Hashes
@@ -215,11 +227,6 @@ if ($initialFile -ne $false) {
 } else {
     # Stage 1 building the initial fiie
     # Build initial file manually/automatically
-    
-    # Load the necessary .NET assemblies
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-
     # Create the form
     $autoManualForm = New-Object System.Windows.Forms.Form
     $autoManualForm.Text = 'Build Initial Listing'
