@@ -129,7 +129,7 @@ function Set-InitialFileManual {
 
     # Create the 'Object added' label
     $addedLabel = New-Object System.Windows.Forms.Label
-    $addedLabel.Location = New-Object System.Drawing.Point(10,150)
+    $addedLabel.Location = New-Object System.Drawing.Point(10,170) # Adjusted the Y value here
     $addedLabel.Size = New-Object System.Drawing.Size(280,20)
     $addedLabel.Text = ''
     $manualForm.Controls.Add($addedLabel)
@@ -167,6 +167,7 @@ function Set-InitialFileManual {
     $doneButton.Text = 'Done'
     $doneButton.Add_Click({ $manualForm.Close() })
     $manualForm.Controls.Add($doneButton)
+
     # Add the TextChanged event to the text boxes
     $filenameTextBox.Add_TextChanged({ $addedLabel.Text = '' })
     $hashTextBox.Add_TextChanged({ $addedLabel.Text = '' })
