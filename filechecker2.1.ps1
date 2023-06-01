@@ -1,4 +1,3 @@
-#2345678901234567890123456789012345678901234567890123456789012345678901234567890
 <#  
     Robert Stepp, robert@robertstepp.ninja
     Functionality - 
@@ -32,9 +31,7 @@ function Search-InitialFileExists {
     $fileExists = Test-Path -Path (
         Join-Path -Path (Get-ParentScriptFolder) -ChildPath $filePattern)
     if ($fileExists) {
-        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath `
-            (Get-ChildItem -Path $scriptPath -Recurse -Filter $filePattern | `
-            Select-Object -ExpandProperty name)
+        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath (Get-ChildItem -Path $scriptPath -Recurse -Filter $filePattern | Select-Object -ExpandProperty name)
         return $existingFile
     } else {
         return $fileExists
@@ -130,6 +127,13 @@ function Set-InitialFileManual {
     # Initialize an array to hold the output
     $script:output = @()
 
+    # Create the 'Object added' label
+    $addedLabel = New-Object System.Windows.Forms.Label
+    $addedLabel.Location = New-Object System.Drawing.Point(10,150)
+    $addedLabel.Size = New-Object System.Drawing.Size(280,20)
+    $addedLabel.Text = ''
+    $manualForm.Controls.Add($addedLabel)
+
     # Create the 'Add' button
     $addButton = New-Object System.Windows.Forms.Button
     $addButton.Location = New-Object System.Drawing.Point(10,120)
@@ -147,6 +151,10 @@ function Set-InitialFileManual {
         # Add the object to the output array
         $script:output += $obj
 
+        # Display the 'Object added' message
+        $addedLabel.Text = 'Object added'
+        $manualForm.Refresh()
+
         $filenameTextBox.Clear()
         $hashTextBox.Clear()
     })
@@ -159,6 +167,9 @@ function Set-InitialFileManual {
     $doneButton.Text = 'Done'
     $doneButton.Add_Click({ $manualForm.Close() })
     $manualForm.Controls.Add($doneButton)
+    # Add the TextChanged event to the text boxes
+    $filenameTextBox.Add_TextChanged({ $addedLabel.Text = '' })
+    $hashTextBox.Add_TextChanged({ $addedLabel.Text = '' })
 
     # Show the form
     $manualForm.ShowDialog()
