@@ -31,10 +31,8 @@ function Search-InitialFileExists {
         $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath `
             (Get-ChildItem -Path $scriptPath -Recurse -Filter $filePattern | `
             Select-Object -ExpandProperty name)
-            Write-Debug $existingFile
         return $existingFile
     } else {
-        Write-Debug $fileExists
         return $fileExists
     }
 }
@@ -43,16 +41,7 @@ function Search-InitialFileExists {
 function Get-ParentScriptFolder {
     $scriptPath = $MyInvocation.PSCommandPath
     $myParentFolder = Split-Path -Path $scriptPath
-    Write-Debug $myParentFolder
     return $myParentFolder
-}
-
-# Hashes files that are passed
-# Includes hash function as they can change
-function Get-Hashes ($filename, $hashtype) {
-    $thisFileHash = Get-FileHash -Path $filename -Algorithm $hashtype
-    Write-Debug $thisFileHash
-    return $thisFileHash
 }
 
 # Identify which hash is being used by hash length
@@ -70,6 +59,34 @@ function Get-HashType ($inputHash) {
 # Will look through all files and folders
 function Set-InitialFileAutomatic {
 
+    # Get the script directory
+    $scriptDirectory = Get-ParentScriptFolder
+
+    # Get all files in the script directory and subfolders
+    $files = Get-ChildItem -Path $scriptDirectory -File -Recurse
+
+    # Initialize an array to hold the output
+    $output = @()
+
+    # Loop through each file
+    foreach ($file in $files) {
+        # Compute the hash of the file
+        $hash = Get-FileHash -Path $file.FullName -Algorithm SHA512
+
+        # Remove the script directory from the file path
+        $relativePath = $file.FullName.Replace($scriptDirectory, '')
+
+        # Create a custom object with the file path and hash
+        $obj = New-Object PSObject
+        $obj | Add-Member -MemberType NoteProperty -Name 'FilePath' -Value $relativePath
+        $obj | Add-Member -MemberType NoteProperty -Name 'Hash' -Value $hash.Hash
+
+        # Add the object to the output array
+        $output += $obj
+    }
+
+    # Write the output array to a CSV file
+    $output | Export-Csv -Path (Initialize-InitialFilePath) -NoTypeInformation
 }
 
 # Gets input from the user on what the hashes should be
@@ -136,12 +153,14 @@ function Set-InitialFileManual {
 
     # Show the form
     $manualForm.ShowDialog()
+
+    # Compare files
+    Compare-Hashes
 }
 
 # Set filename for pretransfer hashes
 function Initialize-InitialFilename {    
     $preFilename = (Get-Date -Format yyyyMMdd_HHmm) + "-initial.hashes.csv"
-    Write-Debug $preFilename
     return $preFilename
 }
 
@@ -150,8 +169,41 @@ function Initialize-InitialFilePath {
     $parentFolder = Get-ParentScriptFolder
     $initialFilename = Initialize-InitialFilename
     $initialFilePath = Join-Path -Path $parentFolder -ChildPath $initialFilename
-    Write-Debug $initialFilePath
     return $initialFilePath
+}
+
+# Compare the initial file to the final hashes
+function Compare-Hashes {
+    # Import the CSV file
+    $csvFile = Search-InitialFileExists
+    $fileHashPairs = Import-Csv -Path $csvFile
+
+    # Initialize an array to hold the output
+    $output = @()
+
+    # Loop through each file-hash pair
+    foreach ($pair in $fileHashPairs) {
+        # Get the hash type
+        [String] $hashType = Get-HashType $pair.Hash
+        $hashType = $hashType.TrimStart()
+
+        # Compute the hash of the file
+        $thisPath = (Join-Path -Path (Get-ParentScriptFolder) -ChildPath $pair.FilePath)
+        $hash = Get-FileHash -Path $thisPath -Algorithm $hashType
+
+        # Compare the new hash against the imported hash
+        if ($hash.Hash -eq $pair.Hash) {
+            $output += "Verified - " + $pair.FilePath
+        } else {
+            $output += "Different- " + $pair.FilePath
+        }
+    }
+
+    # Write the output array to a log file
+    $logFile = (Get-Date -Format yyyyMMdd_HHmm) + "-fileverification.log"
+    $output | Out-File -FilePath $logFile
+    
+    Remove-Item $csvFile
 }
 
 # Main startup
@@ -159,7 +211,7 @@ $initialFile = Search-InitialFileExists
 if ($initialFile -ne $false) {
     # Stage 2 checking after transfer
     # Check the initial file against files in directory
-    Set-InitialFileManual
+    Compare-Hashes
 } else {
     # Stage 1 building the initial fiie
     # Build initial file manually/automatically
