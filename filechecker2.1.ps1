@@ -103,4 +103,3 @@ if ($initialFile -ne $false) {
     # Stage 1 building the initial fiie
     # Build initial file manually/automatically
 }
-
