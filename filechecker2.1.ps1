@@ -10,7 +10,7 @@
     No Debug output = SilentlyContinue
     Debug output = Continue
 #>
-$DebugPreference = 'Continue'
+$DebugPreference = 'SilentlyContinue'
 
 # Load the necessary .NET assemblies
 Add-Type -AssemblyName System.Windows.Forms
@@ -97,7 +97,7 @@ function Set-InitialFileManual {
     # Create the form
     $manualForm = New-Object System.Windows.Forms.Form
     $manualForm.Text = 'Enter Filename and Hash'
-    $manualForm.Size = New-Object System.Drawing.Size(350,200)
+    $manualForm.Size = New-Object System.Drawing.Size(400,250)
     $manualForm.StartPosition = 'CenterScreen'
 
     # Create the filename label and textbox
@@ -109,7 +109,7 @@ function Set-InitialFileManual {
 
     $filenameTextBox = New-Object System.Windows.Forms.TextBox
     $filenameTextBox.Location = New-Object System.Drawing.Point(10,40)
-    $filenameTextBox.Size = New-Object System.Drawing.Size(260,20)
+    $filenameTextBox.Size = New-Object System.Drawing.Size(360,20) # Increased the width of the text box
     $manualForm.Controls.Add($filenameTextBox)
 
     # Create the hash label and textbox
@@ -121,7 +121,7 @@ function Set-InitialFileManual {
 
     $hashTextBox = New-Object System.Windows.Forms.TextBox
     $hashTextBox.Location = New-Object System.Drawing.Point(10,90)
-    $hashTextBox.Size = New-Object System.Drawing.Size(260,20)
+    $hashTextBox.Size = New-Object System.Drawing.Size(360,20) # Increased the width of the text box
     $manualForm.Controls.Add($hashTextBox)
 
     # Initialize an array to hold the output
@@ -129,14 +129,14 @@ function Set-InitialFileManual {
 
     # Create the 'Object added' label
     $addedLabel = New-Object System.Windows.Forms.Label
-    $addedLabel.Location = New-Object System.Drawing.Point(10,170) # Adjusted the Y value here
+    $addedLabel.Location = New-Object System.Drawing.Point(10,170)
     $addedLabel.Size = New-Object System.Drawing.Size(280,20)
     $addedLabel.Text = ''
     $manualForm.Controls.Add($addedLabel)
 
     # Create the 'Add' button
     $addButton = New-Object System.Windows.Forms.Button
-    $addButton.Location = New-Object System.Drawing.Point(10,120)
+    $addButton.Location = New-Object System.Drawing.Point(10,130)
     $addButton.Size = New-Object System.Drawing.Size(75,23)
     $addButton.Text = 'Add'
     $addButton.Add_Click({
@@ -162,11 +162,25 @@ function Set-InitialFileManual {
 
     # Create the 'Done' button
     $doneButton = New-Object System.Windows.Forms.Button
-    $doneButton.Location = New-Object System.Drawing.Point(90,120)
+    $doneButton.Location = New-Object System.Drawing.Point(90,130)
     $doneButton.Size = New-Object System.Drawing.Size(75,23)
     $doneButton.Text = 'Done'
     $doneButton.Add_Click({ $manualForm.Close() })
     $manualForm.Controls.Add($doneButton)
+
+    # Add the help button
+    $helpButton = New-Object System.Windows.Forms.Button
+    $helpButton.Location = New-Object System.Drawing.Point(350,10)
+    $helpButton.Size = New-Object System.Drawing.Size(30,23)
+    $helpButton.Text = '?'
+    $helpButton.Add_Click({
+        $message = 'Step 1: Enter the filename and hash.' + [Environment]::NewLine +
+                   'Step 2: Click the Add button to add the file-hash pair.' + [Environment]::NewLine +
+                   'Step 3: Repeat steps 1 and 2 for each file.' + [Environment]::NewLine +
+                   'Step 4: Click the Done button when finished.'
+        Show-MessageBox $message
+    })
+    $manualForm.Controls.Add($helpButton)
 
     # Add the TextChanged event to the text boxes
     $filenameTextBox.Add_TextChanged({ $addedLabel.Text = '' })
@@ -201,6 +215,11 @@ function Compare-Hashes {
     # Import the CSV file
     $csvFile = Search-InitialFileExists
     $fileHashPairs = Import-Csv -Path $csvFile
+    
+    # Initialize totals
+    $verifiedFiles
+    $differentFiles
+    $totalFiles
 
     # Initialize an array to hold the output
     $output = @()
@@ -218,16 +237,87 @@ function Compare-Hashes {
         # Compare the new hash against the imported hash
         if ($hash.Hash -eq $pair.Hash) {
             $output += "Verified - " + $pair.FilePath
+            $verifiedFiles++
+            $totalFiles++
         } else {
             $output += "Different- " + $pair.FilePath
+            $differentFiles++
+            $totalFiles++
         }
     }
 
     # Write the output array to a log file
     $logFile = (Get-Date -Format yyyyMMdd_HHmm) + "-fileverification.log"
     $output | Out-File -FilePath $logFile
+    Publish-FileTotals $verifiedFiles $differentFiles $totalFiles
     
     Remove-Item $csvFile
+}
+
+# Display totals output
+function Publish-FileTotals ($verified, $different, $total) {
+    # Create the form
+    $totalForm = New-Object System.Windows.Forms.Form
+    $totalForm.Text = 'File Verification'
+    $totalForm.Size = New-Object System.Drawing.Size(300,200)
+    $totalForm.StartPosition = 'CenterScreen'
+
+    # Create the column title labels
+    $verifiedLabel = New-Object System.Windows.Forms.Label
+    $verifiedLabel.Location = New-Object System.Drawing.Point(10,20)
+    $verifiedLabel.Size = New-Object System.Drawing.Size(75,20)
+    $verifiedLabel.Text = 'Verified Files'
+    $verifiedLabel.Font = New-Object System.Drawing.Font($label.Font.FontFamily, $label.Font.Size, [System.Drawing.FontStyle]::Underline)
+    $totalForm.Controls.Add($verifiedLabel)
+
+    $differentLabel = New-Object System.Windows.Forms.Label
+    $differentLabel.Location = New-Object System.Drawing.Point(100,20)
+    $differentLabel.Size = New-Object System.Drawing.Size(75,20)
+    $differentLabel.Text = 'Different Files'
+    $differentLabel.Font = New-Object System.Drawing.Font($label.Font.FontFamily, $label.Font.Size, [System.Drawing.FontStyle]::Underline)
+    $totalForm.Controls.Add($differentLabel)
+
+    $totalLabel = New-Object System.Windows.Forms.Label
+    $totalLabel.Location = New-Object System.Drawing.Point(190,20)
+    $totalLabel.Size = New-Object System.Drawing.Size(75,20)
+    $totalLabel.Text = 'Total Files'
+    $totalLabel.Font = New-Object System.Drawing.Font($label.Font.FontFamily, $label.Font.Size, [System.Drawing.FontStyle]::Underline)
+    $totalForm.Controls.Add($totalLabel)
+
+    # Create the variable labels
+    $verifiedVarLabel = New-Object System.Windows.Forms.Label
+    $verifiedVarLabel.Location = New-Object System.Drawing.Point(10,50)
+    $verifiedVarLabel.Size = New-Object System.Drawing.Size(75,20)
+    $verifiedVarLabel.Text = $verified
+    $totalForm.Controls.Add($verifiedVarLabel)
+
+    $differentVarLabel = New-Object System.Windows.Forms.Label
+    $differentVarLabel.Location = New-Object System.Drawing.Point(100,50)
+    $differentVarLabel.Size = New-Object System.Drawing.Size(75,20)
+    $differentVarLabel.Text = $different
+    $totalForm.Controls.Add($differentVarLabel)
+
+    $totalVarLabel = New-Object System.Windows.Forms.Label
+    $totalVarLabel.Location = New-Object System.Drawing.Point(190,50)
+    $totalVarLabel.Size = New-Object System.Drawing.Size(75,20)
+    $totalVarLabel.Text = $total
+    $totalForm.Controls.Add($totalVarLabel)
+
+    # Create the 'Close' button
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Location = New-Object System.Drawing.Point(100,120)
+    $closeButton.Size = New-Object System.Drawing.Size(100,23)
+    $closeButton.Text = 'Close'
+    $closeButton.Add_Click({ $totalForm.Close() })
+    $totalForm.Controls.Add($closeButton)
+
+    # Show the form
+    $totalForm.ShowDialog()
+}
+
+# Used to pop up informational messages
+function Show-MessageBox ($message) {
+    [System.Windows.Forms.MessageBox]::Show($message, 'Help', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 }
 
 # Main startup
@@ -242,20 +332,20 @@ if ($initialFile -ne $false) {
     # Create the form
     $autoManualForm = New-Object System.Windows.Forms.Form
     $autoManualForm.Text = 'Build Initial Listing'
-    $autoManualForm.Size = New-Object System.Drawing.Size(300,200)
+    $autoManualForm.Size = New-Object System.Drawing.Size(370,200)
     $autoManualForm.StartPosition = 'CenterScreen'
 
     # Create the label
     $label = New-Object System.Windows.Forms.Label
     $label.Location = New-Object System.Drawing.Point(10,20)
-    $label.Size = New-Object System.Drawing.Size(280,40)
+    $label.Size = New-Object System.Drawing.Size(290,40)
     $label.Text = 'How to build initial listing:'
     $autoManualForm.Controls.Add($label)
 
     # Create the 'Automatic' button
     $automaticButton = New-Object System.Windows.Forms.Button
     $automaticButton.Location = New-Object System.Drawing.Point(10,70)
-    $automaticButton.Size = New-Object System.Drawing.Size(75,23)
+    $automaticButton.Size = New-Object System.Drawing.Size(150,23)
     $automaticButton.Text = 'Automatic'
     $automaticButton.Add_Click({
         Set-InitialFileAutomatic
@@ -265,14 +355,27 @@ if ($initialFile -ne $false) {
 
     # Create the 'Manual' button
     $manualButton = New-Object System.Windows.Forms.Button
-    $manualButton.Location = New-Object System.Drawing.Point(90,70)
-    $manualButton.Size = New-Object System.Drawing.Size(75,23)
+    $manualButton.Location = New-Object System.Drawing.Point(190,70)
+    $manualButton.Size = New-Object System.Drawing.Size(150,23)
     $manualButton.Text = 'Manual'
     $manualButton.Add_Click({
         Set-InitialFileManual
         $autoManualForm.Close()
     })
     $autoManualForm.Controls.Add($manualButton)
+
+    # Add the help button
+    $helpButton = New-Object System.Windows.Forms.Button
+    $helpButton.Location = New-Object System.Drawing.Point(310,10)
+    $helpButton.Size = New-Object System.Drawing.Size(30,23)
+    $helpButton.Text = '?'
+    $helpButton.Add_Click({
+        $message = 'Choose how to build the initial listing:' + [Environment]::NewLine +
+                'Automatic: The script will automatically hash all files in the script directory and subfolders.' + [Environment]::NewLine +
+                'Manual: You will manually enter each file and its hash.'
+        Show-MessageBox $message
+    })
+    $autoManualForm.Controls.Add($helpButton)
 
     # Show the form
     $autoManualForm.ShowDialog()
