@@ -1,8 +1,8 @@
-<#  
+<#
     Robert Stepp, robert@robertstepp.ninja
-    Functionality - 
+    Functionality -
         Check hashes for files against a pre-existing file
-        Can be run twice, once to build the initial file and again to compare 
+        Can be run twice, once to build the initial file and again to compare
             the final against initial hashes.
 #>
 
@@ -230,7 +230,7 @@ function Set-InitialFileManual {
 }
 
 # Set filename for pretransfer hashes
-function Initialize-InitialFilename {    
+function Initialize-InitialFilename {
     $preFilename = (Get-Date -Format yyyyMMdd_HHmm) + "-initial.hashes.csv"
     return $preFilename
 }
@@ -248,7 +248,7 @@ function Compare-Hashes {
     # Import the CSV file
     $csvFile = Search-InitialFileExists
     $fileHashPairs = Import-Csv -Path $csvFile
-    
+
     # Initialize totals
     $verifiedFiles = 0
     $differentFiles = 0
@@ -320,8 +320,8 @@ function Compare-Hashes {
     $logFile = (Get-Date -Format yyyyMMdd_HHmm) + "-fileverification.log"
     $logFilePath = Join-Path -Path (Get-ParentScriptFolder) -ChildPath $logFile
     $output | Out-File -FilePath $logFile
-    Publish-FileTotals $verifiedFiles $differentFiles $totalFiles
-    
+    Publish-FileTotals -Verified $verifiedFiles -Different $differentFiles -Total $totalFiles
+
     if ($differentFiles -eq 0 ) {
         Remove-Item $csvFile
     } else {
@@ -337,7 +337,20 @@ function Compare-Hashes {
 }
 
 # Display totals output
-function Publish-FileTotals ($verified, $different, $total) {
+function Publish-FileTotals {
+    param(
+        [Parameter(Mandatory=$true)]
+        [int]
+        $Verified,
+
+        [Parameter(Mandatory=$true)]
+        [int]
+        $Different,
+
+        [Parameter(Mandatory=$true)]
+        [int]
+        $Total
+    )
     # Create the form
     $totalForm = New-Object System.Windows.Forms.Form
     $totalForm.Text = 'File Verification'
