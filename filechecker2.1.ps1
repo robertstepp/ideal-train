@@ -175,19 +175,31 @@ function Set-InitialFileManual {
     $addButton.Add_Click({
         $filename = $filenameTextBox.Text
         $hash = $hashTextBox.Text
+    
+        # Check the filename for invalid characters
+        if ($filename -match '[<>:"/\\|?*]') {
+            # If the filename contains invalid characters, display a message box and return
+            $message = "The filename '$filename' contains one or more invalid characters (<, >, :, `", /, \, |, ?, *). Please enter a valid filename."
+            [System.Windows.Forms.MessageBox]::Show($message, 'Invalid Filename', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
 
+            # Clear the filename text box
+            $filenameTextBox.Clear()
+
+            return
+        }
+    
         # Create a custom object with the file path and hash
         $obj = New-Object PSObject
         $obj | Add-Member -MemberType NoteProperty -Name 'FilePath' -Value $filename
         $obj | Add-Member -MemberType NoteProperty -Name 'Hash' -Value $hash
-
+    
         # Add the object to the output array
         $script:output += $obj
-
+    
         # Display the 'Object added' message
         $addedLabel.Text = 'Object added'
         $manualForm.Refresh()
-
+    
         $filenameTextBox.Clear()
         $hashTextBox.Clear()
     })
