@@ -31,7 +31,7 @@ function Search-InitialFileExists {
     $fileExists = Test-Path -Path (
         Join-Path -Path (Get-ParentScriptFolder) -ChildPath $filePattern)
     if ($fileExists) {
-        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath (Get-ChildItem -Path $scriptPath -Recurse -Filter $filePattern | Select-Object -ExpandProperty name)
+        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath (Get-ChildItem -Path (Get-ParentScriptFolder) -Recurse -Filter $filePattern | Select-Object -ExpandProperty name)
         return $existingFile
     } else {
         return $fileExists
@@ -59,7 +59,6 @@ function Get-HashType ($inputHash) {
 # Look through script directory for files to hash and builds the initial file
 # Will look through all files and folders
 function Set-InitialFileAutomatic {
-
     # Get the script directory
     $scriptDirectory = Get-ParentScriptFolder
 
@@ -68,6 +67,31 @@ function Set-InitialFileAutomatic {
 
     # Initialize an array to hold the output
     $output = @()
+
+    # Create the progress bar form
+    $progressForm = New-Object System.Windows.Forms.Form
+    $progressForm.Text = 'Processing Files'
+    $progressForm.Size = New-Object System.Drawing.Size(400,200)
+    $progressForm.StartPosition = 'CenterScreen'
+
+    # Create the progress bar
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Location = New-Object System.Drawing.Point(10,125)
+    $progressBar.Size = New-Object System.Drawing.Size(300,20)
+    $progressBar.Minimum = 0
+    $progressBar.Maximum = $files.Count
+    $progressBar.Value = 0
+    $progressForm.Controls.Add($progressBar)
+
+    # Create the status label
+    $statusLabel = New-Object System.Windows.Forms.Label
+    $statusLabel.Location = New-Object System.Drawing.Point(50,20)
+    $statusLabel.Size = New-Object System.Drawing.Size(300,40)
+    $progressForm.Controls.Add($statusLabel)
+
+    # Show the progress bar form
+    $progressForm.Show()
+    $progressForm.Refresh()
 
     # Loop through each file
     foreach ($file in $files) {
@@ -84,11 +108,20 @@ function Set-InitialFileAutomatic {
 
         # Add the object to the output array
         $output += $obj
+
+        # Update the progress bar and status label
+        $progressBar.Value++
+        $statusLabel.Text = "Processing $($progressBar.Value) of $($progressBar.Maximum): $relativePath"
+        $progressForm.Refresh()
     }
+
+    # Close the progress bar form
+    $progressForm.Close()
 
     # Write the output array to a CSV file
     $output | Export-Csv -Path (Initialize-InitialFilePath) -NoTypeInformation
 }
+
 
 # Gets input from the user on what the hashes should be
 # Usefule when pulling files fromt the internet/local lan
@@ -187,7 +220,7 @@ function Set-InitialFileManual {
     $hashTextBox.Add_TextChanged({ $addedLabel.Text = '' })
 
     # Show the form
-    $manualForm.ShowDialog()
+    $manualForm.ShowDialog() | Out-Null
 
     # Write the output array to a CSV file
     $script:output | Export-Csv -Path (Initialize-InitialFilePath) -NoTypeInformation
@@ -217,12 +250,40 @@ function Compare-Hashes {
     $fileHashPairs = Import-Csv -Path $csvFile
     
     # Initialize totals
-    $verifiedFiles
-    $differentFiles
-    $totalFiles
+    $verifiedFiles = 0
+    $differentFiles = 0
+    $totalFiles = 0
 
     # Initialize an array to hold the output
     $output = @()
+
+    #Initialize an array to hold file listing for different files
+    $differenceOutput = @()
+
+    # Create the progress bar form
+    $progressForm = New-Object System.Windows.Forms.Form
+    $progressForm.Text = 'Processing Files'
+    $progressForm.Size = New-Object System.Drawing.Size(400,200)
+    $progressForm.StartPosition = 'CenterScreen'
+
+    # Create the progress bar
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Location = New-Object System.Drawing.Point(10,125)
+    $progressBar.Size = New-Object System.Drawing.Size(300,20)
+    $progressBar.Minimum = 0
+    $progressBar.Maximum = $fileHashPairs.Count
+    $progressBar.Value = 0
+    $progressForm.Controls.Add($progressBar)
+
+    # Create the status label
+    $statusLabel = New-Object System.Windows.Forms.Label
+    $statusLabel.Location = New-Object System.Drawing.Point(50,20)
+    $statusLabel.Size = New-Object System.Drawing.Size(300,40)
+    $progressForm.Controls.Add($statusLabel)
+
+    # Show the progress bar form
+    $progressForm.Show()
+    $progressForm.Refresh()
 
     # Loop through each file-hash pair
     foreach ($pair in $fileHashPairs) {
@@ -241,17 +302,38 @@ function Compare-Hashes {
             $totalFiles++
         } else {
             $output += "Different- " + $pair.FilePath
+            $differenceOutput += $pair.FilePath + " || " + $hash.Hash + " || " + $pair.Hash
             $differentFiles++
             $totalFiles++
         }
+
+        # Update the progress bar and status label
+        $progressBar.Value++
+        $statusLabel.Text = "Processing $($progressBar.Value) of $($progressBar.Maximum): $thisPath"
+        $progressForm.Refresh()
     }
+
+    # Close the progress bar form
+    $progressForm.Close()
 
     # Write the output array to a log file
     $logFile = (Get-Date -Format yyyyMMdd_HHmm) + "-fileverification.log"
+    $logFilePath = Join-Path -Path (Get-ParentScriptFolder) -ChildPath $logFile
     $output | Out-File -FilePath $logFile
     Publish-FileTotals $verifiedFiles $differentFiles $totalFiles
     
-    Remove-Item $csvFile
+    if ($differentFiles -eq 0 ) {
+        Remove-Item $csvFile
+    } else {
+        $i = 0
+        while ($i -lt 21) {
+            "*" | Out-File $logFilePath -Append -NoNewline
+            $i++
+        }
+        "" | Out-File -FilePath $logFilePath -Append
+        "FilePath || Original Hash || New Hash" | Out-File -FilePath $logFilePath -Append
+        $differenceOutput | Out-File -FilePath $logFilePath -Append
+    }
 }
 
 # Display totals output
@@ -267,21 +349,21 @@ function Publish-FileTotals ($verified, $different, $total) {
     $verifiedLabel.Location = New-Object System.Drawing.Point(10,20)
     $verifiedLabel.Size = New-Object System.Drawing.Size(75,20)
     $verifiedLabel.Text = 'Verified Files'
-    $verifiedLabel.Font = New-Object System.Drawing.Font($label.Font.FontFamily, $label.Font.Size, [System.Drawing.FontStyle]::Underline)
+    $verifiedLabel.Font = New-Object System.Drawing.Font($verifiedLabel.Font, [System.Drawing.FontStyle]::Underline)
     $totalForm.Controls.Add($verifiedLabel)
 
     $differentLabel = New-Object System.Windows.Forms.Label
     $differentLabel.Location = New-Object System.Drawing.Point(100,20)
     $differentLabel.Size = New-Object System.Drawing.Size(75,20)
     $differentLabel.Text = 'Different Files'
-    $differentLabel.Font = New-Object System.Drawing.Font($label.Font.FontFamily, $label.Font.Size, [System.Drawing.FontStyle]::Underline)
+    $differentLabel.Font = New-Object System.Drawing.Font($differentLabel.Font, [System.Drawing.FontStyle]::Underline)
     $totalForm.Controls.Add($differentLabel)
 
     $totalLabel = New-Object System.Windows.Forms.Label
     $totalLabel.Location = New-Object System.Drawing.Point(190,20)
     $totalLabel.Size = New-Object System.Drawing.Size(75,20)
     $totalLabel.Text = 'Total Files'
-    $totalLabel.Font = New-Object System.Drawing.Font($label.Font.FontFamily, $label.Font.Size, [System.Drawing.FontStyle]::Underline)
+    $totalLabel.Font = New-Object System.Drawing.Font($TotalLabel.Font, [System.Drawing.FontStyle]::Underline)
     $totalForm.Controls.Add($totalLabel)
 
     # Create the variable labels
@@ -312,7 +394,7 @@ function Publish-FileTotals ($verified, $different, $total) {
     $totalForm.Controls.Add($closeButton)
 
     # Show the form
-    $totalForm.ShowDialog()
+    $totalForm.ShowDialog() | Out-Null
 }
 
 # Used to pop up informational messages
@@ -378,5 +460,5 @@ if ($initialFile -ne $false) {
     $autoManualForm.Controls.Add($helpButton)
 
     # Show the form
-    $autoManualForm.ShowDialog()
+    $autoManualForm.ShowDialog() | Out-Null
 }
