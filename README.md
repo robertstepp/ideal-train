@@ -1,15 +1,21 @@
-# ideal-train
+# File Verification PowerShell Script
 
-FileChecker2.1.ps1 - This has two main functions
+This PowerShell script is designed to verify the integrity of files in a directory by comparing their hashes against a pre-existing file of hashes. It can be run in two stages: first to generate the initial hash file, and second to compare the current hashes against the initial ones.
+## Usage
+### Stage 1: Building the Initial File
 
-    Function 1:
-    
-        Stage 1 = Hash all files in the script directory and output to an initial csv document
-        Stage 2 = After transfer to another PC, hash all files in the script directory and identify any mismatched files
-        
-    Function 2:
-    
-        Stage 1 = Create an initial csv document based on hashes provided by an internet/local lan site
-        Stage 2 = Hash all files in the script directory and identify any mismatched files
+Run the script in the directory you want to monitor. It will ask you whether you want to build the initial file manually or automatically.
 
-This is useful when downloading many files from the internet or when transfering files to another PC or location where corrupted files will cause issues.
+>**Automatic:** The script will automatically hash all files in the script directory and subfolders.
+>
+>**Manual:** You will manually enter each file and its hash.
+
+### Stage 2: Checking After Transfer
+
+Run the script again after the files have been transferred. It will compare the current hashes against the initial ones and output the results to a log file.
+### Debugging
+
+You can use the Write-Debug cmdlet to output debug information. Set `$DebugPreference = 'Continue'` at the top of the script to enable debug output.
+### Contact
+
+If you have any questions or issues, please contact Robert Stepp at robert@robertstepp.ninja.
