@@ -61,7 +61,7 @@ function Get-HashType ($inputHash) {
     foreach ($key in $hashTypes.Keys) {
         if ($hashTypes[$key] -eq $inputHash.length) {
             $thisHashType = $key
-        }  
+        }
     }
     Write-Debug "Hash type determined: $($thisHashType)"
     return $thisHashType
@@ -350,7 +350,7 @@ function Compare-Hashes {
         if (-not (Test-Path -Path $thisPath)) {
             Write-Debug "File not found: $($thisPath)"
             $missingFiles += "`t$($pair.FilePath)`n"
-            $differentFiles++            
+            $differentFiles++         
             $errorCondition = $true
             continue
         }
