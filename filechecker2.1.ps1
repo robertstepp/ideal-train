@@ -12,6 +12,13 @@
 #>
 $DebugPreference = 'SilentlyContinue'
 
+# Start the transcript
+if ($DebugPreference -eq "Continue") {
+    $logFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath "debug.log"
+    Start-Transcript -Path $logFile -Append
+}
+Write-Debug "Debug Preference: $($DebugPreference)"
+
 # Load the necessary .NET assemblies
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -31,9 +38,11 @@ function Search-InitialFileExists {
     $fileExists = Test-Path -Path (
         Join-Path -Path (Get-ParentScriptFolder) -ChildPath $filePattern)
     if ($fileExists) {
-        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath (Get-ChildItem -Path (Get-ParentScriptFolder) -Recurse -Filter $filePattern | Select-Object -ExpandProperty name)
+        $existingFile = Join-Path -Path (Get-ParentScriptFolder) -ChildPath (Get-ChildItem -Path (Get-ParentScriptFolder) -Filter $filePattern | Select-Object -ExpandProperty name)
+        Write-Debug "Existing CSV file: $($existingFile)"
         return $existingFile
     } else {
+        Write-Debug "CSV file not found: $(-not($fileExists))"
         return $fileExists
     }
 }
@@ -42,6 +51,7 @@ function Search-InitialFileExists {
 function Get-ParentScriptFolder {
     $scriptPath = $MyInvocation.PSCommandPath
     $myParentFolder = Split-Path -Path $scriptPath
+    Write-Debug "Parent Folder: $($myParentFolder)"
     return $myParentFolder
 }
 
@@ -51,8 +61,9 @@ function Get-HashType ($inputHash) {
     foreach ($key in $hashTypes.Keys) {
         if ($hashTypes[$key] -eq $inputHash.length) {
             $thisHashType = $key
-        }
+        }  
     }
+    Write-Debug "Hash type determined: $($thisHashType)"
     return $thisHashType
 }
 
@@ -96,7 +107,9 @@ function Set-InitialFileAutomatic {
     # Loop through each file
     foreach ($file in $files) {
         # Compute the hash of the file
+        Write-Debug "Computing hash for file: $($file)"
         $hash = Get-FileHash -Path $file.FullName -Algorithm SHA512
+        Write-Debug "Computed hash: $($hash.Hash)"
 
         # Remove the script directory from the file path
         $relativePath = $file.FullName.Replace($scriptDirectory, '')
@@ -244,6 +257,7 @@ function Set-InitialFileManual {
 # Set filename for pretransfer hashes
 function Initialize-InitialFilename {
     $preFilename = (Get-Date -Format yyyyMMdd_HHmm) + "-initial.hashes.csv"
+    Write-Debug "Initial File name: $($preFilename)"
     return $preFilename
 }
 
@@ -252,6 +266,7 @@ function Initialize-InitialFilePath {
     $parentFolder = Get-ParentScriptFolder
     $initialFilename = Initialize-InitialFilename
     $initialFilePath = Join-Path -Path $parentFolder -ChildPath $initialFilename
+    Write-Debug "Initial File Path: $($initialFilePath)"
     return $initialFilePath
 }
 
@@ -268,6 +283,12 @@ function Compare-Hashes {
 
     # Initialize an array to hold the output
     $output = @()
+
+    # Initialize an array to hold missing files
+    $missingFiles = @()
+
+    # Initialize an array to hold incorrect hash types
+    $incorrectHash = @()
 
     #Initialize an array to hold file listing for different files
     $differenceOutput = @()
@@ -297,28 +318,62 @@ function Compare-Hashes {
     $progressForm.Show()
     $progressForm.Refresh()
 
+    # Add header to missing file array
+    $missingFiles += "Missing Files:`n"
+
+    # Add header to incorrect hash array
+    $incorrectHash += "Incorrect Hash:`n"
+
+    # Add variable to tell if there is an error
+    $errorCondition = $false
+
     # Loop through each file-hash pair
     foreach ($pair in $fileHashPairs) {
         # Get the hash type
         [String] $hashType = Get-HashType $pair.Hash
         $hashType = $hashType.TrimStart()
+        Write-Debug "Hash type for $($pair.FilePath): $($hashType)"
 
-        # Compute the hash of the file
-        $thisPath = (Join-Path -Path (Get-ParentScriptFolder) -ChildPath $pair.FilePath)
-        $hash = Get-FileHash -Path $thisPath -Algorithm $hashType
-
-        # Compare the new hash against the imported hash
-        if ($hash.Hash -eq $pair.Hash) {
-            $output += "Verified - " + $pair.FilePath
-            $verifiedFiles++
-            $totalFiles++
-        } else {
-            $output += "Different- " + $pair.FilePath
-            $differenceOutput += $pair.FilePath + " || " + $hash.Hash + " || " + $pair.Hash
+        # Check if the hash type is recognized
+        if ($null -eq $hashType -or '' -eq $hashType.Trim()) {
+            Write-Debug "Unrecognized hash type for file: $($pair.FilePath)"
+            $incorrectHash += "`t$($pair.FilePath)`n"
             $differentFiles++
-            $totalFiles++
+            $errorCondition = $true
+            continue
         }
 
+        # Create path of the file
+        $thisPath = (Join-Path -Path (Get-ParentScriptFolder) -ChildPath $pair.FilePath)
+
+        # Check if the file exists
+        if (-not (Test-Path -Path $thisPath)) {
+            Write-Debug "File not found: $($thisPath)"
+            $missingFiles += "`t$($pair.FilePath)`n"
+            $differentFiles++            
+            $errorCondition = $true
+            continue
+        }
+
+        Write-Debug "Is there an error condition: $($errorCondition)"
+        # Compute the hash of the file
+        if ($errorCondition -ne $true) {
+            Write-Debug "Computing hash for file: $($thisPath)"
+            $hash = Get-FileHash -Path $thisPath -Algorithm $hashType
+            Write-Debug "Computed hash: $($hash.Hash)"
+        }
+
+        $errorCondition = $false
+        # Compare the new hash against the imported hash
+        if ($hash.Hash -eq $pair.Hash) {
+            $output += "Verified  - " + $pair.FilePath
+            $verifiedFiles++
+        } else {
+            $output += "Different - " + $pair.FilePath
+            $differenceOutput += $differenceOutput += $pair.FilePath + "`n`t" + $hash.Hash + "`n`t" + $pair.Hash
+            $differentFiles++
+        }
+        $totalFiles++
         # Update the progress bar and status label
         $progressBar.Value++
         $statusLabel.Text = "Processing $($progressBar.Value) of $($progressBar.Maximum): $thisPath"
@@ -331,20 +386,31 @@ function Compare-Hashes {
     # Write the output array to a log file
     $logFile = (Get-Date -Format yyyyMMdd_HHmm) + "-fileverification.log"
     $logFilePath = Join-Path -Path (Get-ParentScriptFolder) -ChildPath $logFile
-    $output | Out-File -FilePath $logFile
+    $output | Out-File -FilePath $logFilePath
+
     Publish-FileTotals -Verified $verifiedFiles -Different $differentFiles -Total $totalFiles
 
     if ($differentFiles -eq 0 ) {
         Remove-Item $csvFile
     } else {
         $i = 0
+        "" | Out-File -FilePath $logFilePath -Append
         while ($i -lt 21) {
             "*" | Out-File $logFilePath -Append -NoNewline
             $i++
         }
         "" | Out-File -FilePath $logFilePath -Append
-        "FilePath || Original Hash || New Hash" | Out-File -FilePath $logFilePath -Append
+        "FilePath `n`t Original Hash `n`t New Hash" | Out-File -FilePath $logFilePath -Append
         $differenceOutput | Out-File -FilePath $logFilePath -Append
+        $j = 0
+        "" | Out-File -FilePath $logFilePath -Append
+        while ($j -lt 21) {
+            "*" | Out-File $logFilePath -Append -NoNewline
+            $j++
+        }
+        "" | Out-File -FilePath $logFilePath -Append
+        $missingFiles | Out-File -FilePath $logFilePath -Append
+        $incorrectHash | Out-File -FilePath $logFilePath -Append
     }
 }
 
@@ -429,6 +495,7 @@ function Show-MessageBox ($message) {
 
 # Main startup
 $initialFile = Search-InitialFileExists
+Write-Debug "Initial File [Main]: $($initialFile)"
 if ($initialFile -ne $false) {
     # Stage 2 checking after transfer
     # Check the initial file against files in directory
@@ -486,4 +553,8 @@ if ($initialFile -ne $false) {
 
     # Show the form
     $autoManualForm.ShowDialog() | Out-Null
+}
+if ($DebugPreference -eq "Continue") {
+    # Stop the transcript
+    Stop-Transcript
 }
