@@ -232,10 +232,12 @@ function Set-InitialFileManual {
     $helpButton.Size = New-Object System.Drawing.Size(30,23)
     $helpButton.Text = '?'
     $helpButton.Add_Click({
-        $message = 'Step 1: Enter the filename and hash.' + [Environment]::NewLine +
-                   'Step 2: Click the Add button to add the file-hash pair.' + [Environment]::NewLine +
-                   'Step 3: Repeat steps 1 and 2 for each file.' + [Environment]::NewLine +
-                   'Step 4: Click the Done button when finished.'
+        $message = {
+            Step 1: Enter the filename and hash.
+            Step 2: Click the Add button to add the file-hash pair.
+            Step 3: Repeat steps 1 and 2 for each file.
+            Step 4: Click the Done button when finished.
+        }
         Show-MessageBox $message
     })
     $manualForm.Controls.Add($helpButton)
@@ -544,9 +546,13 @@ if ($initialFile -ne $false) {
     $helpButton.Size = New-Object System.Drawing.Size(30,23)
     $helpButton.Text = '?'
     $helpButton.Add_Click({
-        $message = 'Choose how to build the initial listing:' + [Environment]::NewLine +
-                'Automatic: The script will automatically hash all files in the script directory and subfolders.' + [Environment]::NewLine +
-                'Manual: You will manually enter each file and its hash.'
+        $message = {
+            Choose how to build the initial listing:
+            -Automatic: The script will automatically hash all 
+            files in the script directory and subfolders.
+            -Manual: You will manually enter each file and its 
+            hash.
+        }
         Show-MessageBox $message
     })
     $autoManualForm.Controls.Add($helpButton)
