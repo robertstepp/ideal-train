@@ -416,6 +416,179 @@ function Compare-Hashes {
     }
 }
 
+# Compare the initial file to the final hashes but at an external location.
+function Compare-HashesExternal {
+
+    Write-Debug "External Chosen"
+    # Create and configure the folder browser dialog
+    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderBrowser.Description = "Select the external folder for comparison"
+    $folderBrowser.RootFolder = 'MyComputer' # Start at My Computer
+    $folderBrowser.SelectedPath = Get-ParentScriptFolder # Set initial directory
+
+    # Show the folder browser dialog
+    $dialogResult = $folderBrowser.ShowDialog()
+    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
+        $externalPath = $folderBrowser.SelectedPath
+        # Logic for external comparison using $externalPath
+    } else {
+        # Handle the case where the user cancels the folder selection
+        Write-Host "No folder selected. Exiting comparison."
+        return
+    }
+
+    # Ensure the path is valid
+    if (-not (Test-Path -Path $externalPath)) {
+        Write-Host "Invalid path: $externalPath"
+        return
+    }
+
+    # Import the CSV file
+    $csvFile = Search-InitialFileExists
+    $fileHashPairs = Import-Csv -Path $csvFile
+
+    # Import the CSV file
+    $csvFile = Search-InitialFileExists
+    $fileHashPairs = Import-Csv -Path $csvFile
+
+    # Initialize totals
+    $verifiedFiles = 0
+    $differentFiles = 0
+    $totalFiles = 0
+
+    # Initialize an array to hold the output
+    $output = @()
+
+    # Initialize an array to hold missing files
+    $missingFiles = @()
+
+    # Initialize an array to hold incorrect hash types
+    $incorrectHash = @()
+
+    #Initialize an array to hold file listing for different files
+    $differenceOutput = @()
+
+    # Create the progress bar form
+    $progressForm = New-Object System.Windows.Forms.Form
+    $progressForm.Text = 'Processing Files'
+    $progressForm.Size = New-Object System.Drawing.Size(400,200)
+    $progressForm.StartPosition = 'CenterScreen'
+
+    # Create the progress bar
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Location = New-Object System.Drawing.Point(10,125)
+    $progressBar.Size = New-Object System.Drawing.Size(300,20)
+    $progressBar.Minimum = 0
+    $progressBar.Maximum = $fileHashPairs.Count
+    $progressBar.Value = 0
+    $progressForm.Controls.Add($progressBar)
+
+    # Create the status label
+    $statusLabel = New-Object System.Windows.Forms.Label
+    $statusLabel.Location = New-Object System.Drawing.Point(50,20)
+    $statusLabel.Size = New-Object System.Drawing.Size(300,40)
+    $progressForm.Controls.Add($statusLabel)
+
+    # Show the progress bar form
+    $progressForm.Show()
+    $progressForm.Refresh()
+
+    # Add header to missing file array
+    $missingFiles += "Missing Files:`n"
+
+    # Add header to incorrect hash array
+    $incorrectHash += "Incorrect Hash:`n"
+
+    # Add variable to tell if there is an error
+    $errorCondition = $false
+
+    # Loop through each file-hash pair
+    foreach ($pair in $fileHashPairs) {
+        # Get the hash type
+        [String] $hashType = Get-HashType $pair.Hash
+        $hashType = $hashType.TrimStart()
+        Write-Debug "Hash type for $($pair.FilePath): $($hashType)"
+
+        # Check if the hash type is recognized
+        if ($null -eq $hashType -or '' -eq $hashType.Trim()) {
+            Write-Debug "Unrecognized hash type for file: $($pair.FilePath)"
+            $incorrectHash += "`t$($pair.FilePath)`n"
+            $differentFiles++
+            $errorCondition = $true
+            continue
+        }
+
+        # Create path of the file
+        $thisPath = (Join-Path -Path (Get-ParentScriptFolder) -ChildPath $pair.FilePath)
+
+        # Check if the file exists
+        if (-not (Test-Path -Path $thisPath)) {
+            Write-Debug "File not found: $($thisPath)"
+            $missingFiles += "`t$($pair.FilePath)`n"
+            $differentFiles++
+            $errorCondition = $true
+            continue
+        }
+
+        Write-Debug "Is there an error condition: $($errorCondition)"
+        # Compute the hash of the file
+        if ($errorCondition -ne $true) {
+            Write-Debug "Computing hash for file: $($thisPath)"
+            $hash = Get-FileHash -Path $thisPath -Algorithm $hashType
+            Write-Debug "Computed hash: $($hash.Hash)"
+        }
+
+        $errorCondition = $false
+        # Compare the new hash against the imported hash
+        if ($hash.Hash -eq $pair.Hash) {
+            $output += "Verified  - " + $pair.FilePath
+            $verifiedFiles++
+        } else {
+            $output += "Different - " + $pair.FilePath
+            $differenceOutput += $differenceOutput += $pair.FilePath + "`n`t" + $hash.Hash + "`n`t" + $pair.Hash
+            $differentFiles++
+        }
+        $totalFiles++
+        # Update the progress bar and status label
+        $progressBar.Value++
+        $statusLabel.Text = "Processing $($progressBar.Value) of $($progressBar.Maximum): $thisPath"
+        $progressForm.Refresh()
+    }
+
+    # Close the progress bar form
+    $progressForm.Close()
+
+    # Write the output array to a log file
+    $logFile = (Get-Date -Format yyyyMMdd_HHmm) + "-fileverification.log"
+    $logFilePath = Join-Path -Path (Get-ParentScriptFolder) -ChildPath $logFile
+    $output | Out-File -FilePath $logFilePath
+
+    Publish-FileTotals -Verified $verifiedFiles -Different $differentFiles -Total $totalFiles
+
+    if ($differentFiles -eq 0 ) {
+        Remove-Item $csvFile
+    } else {
+        $i = 0
+        "" | Out-File -FilePath $logFilePath -Append
+        while ($i -lt 21) {
+            "*" | Out-File $logFilePath -Append -NoNewline
+            $i++
+        }
+        "" | Out-File -FilePath $logFilePath -Append
+        "FilePath `n`t Original Hash `n`t New Hash" | Out-File -FilePath $logFilePath -Append
+        $differenceOutput | Out-File -FilePath $logFilePath -Append
+        $j = 0
+        "" | Out-File -FilePath $logFilePath -Append
+        while ($j -lt 21) {
+            "*" | Out-File $logFilePath -Append -NoNewline
+            $j++
+        }
+        "" | Out-File -FilePath $logFilePath -Append
+        $missingFiles | Out-File -FilePath $logFilePath -Append
+        $incorrectHash | Out-File -FilePath $logFilePath -Append
+    }
+}
+
 # Display totals output
 function Publish-FileTotals {
     param(
@@ -500,8 +673,50 @@ $initialFile = Search-InitialFileExists
 Write-Debug "Initial File [Main]: $($initialFile)"
 if ($initialFile -ne $false) {
     # Stage 2 checking after transfer
-    # Check the initial file against files in directory
-    Compare-Hashes
+    # Create the form
+    $comparisonForm = New-Object System.Windows.Forms.Form
+    $comparisonForm.Text = 'Select Comparison Type'
+    $comparisonForm.Size = New-Object System.Drawing.Size(370,200)
+    $comparisonForm.StartPosition = 'CenterScreen'
+
+    # Create the 'Local' button
+    $localButton = New-Object System.Windows.Forms.Button
+    $localButton.Location = New-Object System.Drawing.Point(10,70)
+    $localButton.Size = New-Object System.Drawing.Size(150,23)
+    $localButton.Text = 'Local'
+    $localButton.Add_Click({
+        Compare-Hashes
+        $comparisonForm.Close()
+    })
+    $comparisonForm.Controls.Add($localButton)
+
+    # Create the 'External' button
+    $externalButton = New-Object System.Windows.Forms.Button
+    $externalButton.Location = New-Object System.Drawing.Point(190,70)
+    $externalButton.Size = New-Object System.Drawing.Size(150,23)
+    $externalButton.Text = 'External'
+    $externalButton.Add_Click({
+            # External comparison
+            Compare-HashesExternal
+            $comparisonForm.Close()
+    })
+    $comparisonForm.Controls.Add($externalButton)
+
+    # Create the 'Help' button
+    $helpButton = New-Object System.Windows.Forms.Button
+    $helpButton.Location = New-Object System.Drawing.Point(310,10)
+    $helpButton.Size = New-Object System.Drawing.Size(30,23)
+    $helpButton.Text = '?'
+    $helpButton.Add_Click({
+        $message = "Local: Compare files in the current directory with the initial file." + [Environment]::NewLine +
+                       "External: Compare files in a specified external location (e.g., a non-writable disk) with the initial file. The log file will be saved locally."
+        Show-MessageBox $message
+    })
+    $comparisonForm.Controls.Add($helpButton)
+
+    # Show the form
+    $comparisonForm.ShowDialog() | Out-Null
+    #read-host -Prompt "Press Enter"
 } else {
     # Stage 1 building the initial fiie
     # Build initial file manually/automatically

@@ -13,6 +13,11 @@ Run the script in the directory you want to monitor. It will ask you whether you
 ### Stage 2: Checking After Transfer
 
 Run the script again after the files have been transferred. It will compare the current hashes against the initial ones and output the results to a log file.
+
+>**Local Check:** Will check the local files against the initial hashes file.
+>
+>**External Check:** Will prompt for an external location (to include non-writable locations) to check against the initial hashes file in the current location. It will provide a comparison log in the local location after completion.
+
 ### Debugging
 
 You can use the Write-Debug cmdlet to output debug information. Set `$DebugPreference = 'Continue'` at the top of the script to enable debug output.
