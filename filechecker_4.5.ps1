@@ -31,7 +31,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
     @params - None
     @returns - False if file doesn't exist, otherwise the path to the existing file.
 #> 
-function Check-InitialFileExists 
+function Test-InitialFileExists 
 {
     $filePattern = "*-initial.hashes.csv"
     $fileExists = Test-Path -Path (
@@ -126,7 +126,7 @@ function Show-ManualForm
 <#
 
 #>
-function Initialze-InitialFilename
+function Initialize-InitialFilename
 {
 
 }
