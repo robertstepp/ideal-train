@@ -73,20 +73,20 @@ function Get-HashType ($inputHash) {
 function Set-InitialFileAutomatic {
     $scriptDirectory = Get-ParentScriptFolder
     [System.Collections.ArrayList]$output = @()
-    
+
     # Get initial file list excluding tempFiles directory and log files
-    $files = Get-ChildItem -Path $scriptDirectory -File -Recurse | 
-        Where-Object { 
-            $_.FullName -notlike "*\tempFiles\*" -and 
+    $files = Get-ChildItem -Path $scriptDirectory -File -Recurse |
+        Where-Object {
+            $_.FullName -notlike "*\tempFiles\*" -and
             $_.Extension -ne ".log" -and
             $_.Extension -ne ".csv"
         }
-    
+
     $progressForm = New-Object System.Windows.Forms.Form
     $progressForm.Text = 'Processing Files'
     $progressForm.Size = New-Object System.Drawing.Size(400,200)
     $progressForm.StartPosition = 'CenterScreen'
-    
+
     $progressBar = New-Object System.Windows.Forms.ProgressBar
     $progressBar.Location = New-Object System.Drawing.Point(10,125)
     $progressBar.Size = New-Object System.Drawing.Size(300,20)
@@ -94,15 +94,15 @@ function Set-InitialFileAutomatic {
     $progressBar.Maximum = $files.Count
     $progressBar.Value = 0
     $progressForm.Controls.Add($progressBar)
-    
+
     $statusLabel = New-Object System.Windows.Forms.Label
     $statusLabel.Location = New-Object System.Drawing.Point(50,20)
     $statusLabel.Size = New-Object System.Drawing.Size(300,40)
     $progressForm.Controls.Add($statusLabel)
-    
+
     $progressForm.Show()
     $progressForm.Refresh()
-    
+
     foreach ($file in $files) {
         $extension = (Split-Path -Path $file.FullName -Leaf).Split('.')[-1].ToLower()
         Write-Debug $extension
@@ -110,31 +110,31 @@ function Set-InitialFileAutomatic {
         # Process the file first
         $relativePath = $file.FullName.Replace($scriptDirectory, '').TrimStart('\')
         $hash = Get-FileHash -Path $file.FullName -Algorithm SHA512
-        
+
         $obj = [PSCustomObject]@{
             FilePath = $relativePath
             Hash = $hash.Hash
         }
         [void]$output.Add($obj)
-        
+
         # Then process archive contents if applicable
         if ($extension -in @('zip', 'tgz', 'iso')) {
             Invoke-ArchiveFile -FilePath $file.FullName -OutputArray $output
         }
-        
+
         $progressBar.Value++
         $statusLabel.Text = "Processing $($progressBar.Value) of $($progressBar.Maximum): $relativePath"
         $progressForm.Refresh()
     }
-    
+
     $progressForm.Close()
-    
+
     # Clean up tempFiles directory and all contents
     $tempPath = Join-Path -Path "." -ChildPath "tempFiles"
     if (Test-Path $tempPath) {
         Remove-Item -Path $tempPath -Recurse -Force
     }
-    
+
     $output | Export-Csv -Path (Initialize-InitialFilePath) -NoTypeInformation
 }
 
@@ -282,19 +282,19 @@ function Invoke-ArchiveFile {
         [Parameter(Mandatory=$true)]
         [System.Collections.ArrayList]$OutputArray
     )
-    
+
     $tempPath = Join-Path -Path "." -ChildPath "tempFiles"
     $extractPath = Join-Path -Path $tempPath -ChildPath (New-Guid).ToString()
-    
+
     try {
         if (-not (Test-Path $tempPath)) {
             New-Item -ItemType Directory -Path $tempPath | Out-Null
         }
         New-Item -ItemType Directory -Path $extractPath | Out-Null
-        
+
         $extension = (Split-Path -Path $FilePath -Leaf).Split('.')[-1].ToLower()
         $archiveFileName = Split-Path -Path $FilePath -Leaf
-        
+
         switch ($extension) {
             "zip" {
                 Write-Debug $extension
@@ -310,30 +310,30 @@ function Invoke-ArchiveFile {
                     $driveLetter = ($mountResult | Get-Volume).DriveLetter
                     $isoPath = "${driveLetter}:\"
                     Write-Debug "ISO mounted at: $isoPath"
-                    
+
                     # List all files in ISO for debugging
                     $isoFiles = Get-ChildItem -Path $isoPath -Recurse -Force
                     Write-Debug "Files found in ISO: $($isoFiles.Count)"
-                    
+
                     foreach ($isoFile in $isoFiles) {
                         if (-not $isoFile.PSIsContainer) {
                             # Get relative path from ISO root
                             $relativePath = $isoFile.FullName.Replace($isoPath, "")
                             $destPath = Join-Path $extractPath $relativePath
-                            
+
                             $destDir = Split-Path -Parent $destPath
                             if (-not (Test-Path $destDir)) {
 
                                 New-Item -ItemType Directory -Path $destDir -Force | Out-Null
                             }
-                            
+
                             Write-Debug "Copying $($isoFile.FullName) to $destPath"
                             Copy-Item -Path $isoFile.FullName -Destination $destPath -Force
-                            
+
                             # Calculate hash for this file and add to output
                             $hash = Get-FileHash -Path $destPath -Algorithm SHA512
                             $archivePath = $archiveFileName + "\" + $relativePath
-                            
+
                             $fileHash = [PSCustomObject]@{
                                 FilePath = $archivePath
                                 Hash = $hash.Hash
@@ -347,7 +347,7 @@ function Invoke-ArchiveFile {
                 }
             }
         }
-        
+
         # Handle regular archive files (zip/tgz)
         if ($extension -in @('zip', 'tgz')) {
             $files = Get-ChildItem -Path $extractPath -File -Recurse -Force
@@ -355,7 +355,7 @@ function Invoke-ArchiveFile {
                 $relativePath = $file.FullName.Replace($extractPath, "")
                 $hash = Get-FileHash -Path $file.FullName -Algorithm SHA512
                 $archivePath = $archiveFileName + "\" + $relativePath
-                
+
                 $fileHash = [PSCustomObject]@{
                     FilePath = $archivePath
                     Hash = $hash.Hash
@@ -523,7 +523,7 @@ function Compare-HashesExternal {
     $folderBrowserDialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $folderBrowserDialog.Description = "Select the external location for comparison"
     $folderBrowserDialog.RootFolder = "MyComputer" # Start at My Computer
-    
+
     # Show the folder browser dialog
     $dialogResult = $folderBrowserDialog.ShowDialog()
     if ($dialogResult -ne "OK") {
@@ -860,9 +860,9 @@ if ($initialFile -ne $false) {
     $helpButton.Add_Click({
         $message = {
             Choose how to build the initial listing:
-            -Automatic: The script will automatically hash all 
+            -Automatic: The script will automatically hash all
             files in the script directory and subfolders.
-            -Manual: You will manually enter each file and its 
+            -Manual: You will manually enter each file and its
             hash.
         }
         Show-MessageBox $message

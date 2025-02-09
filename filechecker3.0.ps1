@@ -763,9 +763,9 @@ if ($initialFile -ne $false) {
     $helpButton.Add_Click({
         $message = {
             Choose how to build the initial listing:
-            -Automatic: The script will automatically hash all 
+            -Automatic: The script will automatically hash all
             files in the script directory and subfolders.
-            -Manual: You will manually enter each file and its 
+            -Manual: You will manually enter each file and its
             hash.
         }
         Show-MessageBox $message

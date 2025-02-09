@@ -424,7 +424,7 @@ function Compare-HashesExternal {
     $folderBrowserDialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $folderBrowserDialog.Description = "Select the external location for comparison"
     $folderBrowserDialog.RootFolder = "MyComputer" # Start at My Computer
-    
+
     # Show the folder browser dialog
     $dialogResult = $folderBrowserDialog.ShowDialog()
     if ($dialogResult -ne "OK") {
@@ -761,9 +761,9 @@ if ($initialFile -ne $false) {
     $helpButton.Add_Click({
         $message = {
             Choose how to build the initial listing:
-            -Automatic: The script will automatically hash all 
+            -Automatic: The script will automatically hash all
             files in the script directory and subfolders.
-            -Manual: You will manually enter each file and its 
+            -Manual: You will manually enter each file and its
             hash.
         }
         Show-MessageBox $message
