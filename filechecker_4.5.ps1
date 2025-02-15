@@ -83,8 +83,8 @@ function Get-HashType
     foreach ($key in $hashTypes.Keys)
     {
         if ($hashTypes[$key] -eq $inputHash.length) {
-            return $key
             Write-Debug "Hash type determined: $($thisHashType)"
+            return $key
         } else {
             Write-Debug "Hash type not found"
         }
