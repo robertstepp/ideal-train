@@ -1,6 +1,6 @@
 # File Checker v5.10
 
-**Author:** Robert Stepp — robert@robertstepp.ninja
+**Author:** Robert Stepp — <robert@robertstepp.ninja>
 
 A PowerShell utility for verifying file integrity across transfers, primarily intended for disc-based archival and chain-of-custody workflows. Run once before a transfer to build a hash listing, then again after to verify nothing changed. Designed with cybersecurity professionals in mind.
 
