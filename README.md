@@ -1,105 +1,179 @@
-# File Verification PowerShell Script
+# File Checker v5.10
 
-This PowerShell script verifies the integrity of files by generating SHA-512 hashes and comparing them against a saved hash manifest. It runs in two stages: first to build the initial hash manifest, and second to verify files against it. The script uses a graphical Windows Forms interface with progress bars throughout.
+**Author:** Robert Stepp — robert@robertstepp.ninja
+
+A PowerShell utility for verifying file integrity across transfers, primarily intended for disc-based archival and chain-of-custody workflows. Run once before a transfer to build a hash listing, then again after to verify nothing changed. Designed with cybersecurity professionals in mind.
+
+---
 
 ## Requirements
 
-- Windows PowerShell 5.1 or PowerShell 7+
-- Windows OS (uses Windows Forms for the GUI)
-- `tar` available on PATH (required only for `.tar` / `.tar.gz` / `.tgz` archive enumeration)
-- Administrator rights recommended for ISO enumeration (see [Archive Support](#archive-support))
+- Windows PowerShell 5.1 or later
+- Windows 10 1803 or later (for built-in `tar.exe`)
+- Administrator rights are not required, except that `Mount-DiskImage` (used for ISO enumeration) may fail on Windows Server SKUs without elevation — the script will warn if this is the case
 
-## Usage
+---
+
+## Quick Start
 
 ```powershell
-powershell -File filechecker5.5.ps1
-powershell -File filechecker5.5.ps1 -DebugMode
-powershell -File filechecker5.5.ps1 -BasePath "D:\Transfer"
-powershell -File filechecker5.5.ps1 -DebugMode -SkipArchiveContents
+# Standard run (GUI-driven)
+powershell -File filechecker5_10.ps1
+
+# With CLI arguments
+powershell -File filechecker5_10.ps1 -DebugMode
+powershell -File filechecker5_10.ps1 -BasePath "D:\Transfer"
+powershell -File filechecker5_10.ps1 -BasePath "D:\Transfer" -SkipArchiveContents
 ```
 
-### Parameters
+---
+
+## Parameters
 
 | Parameter | Type | Description |
 |---|---|---|
-| `-DebugMode` | Switch | Enables verbose debug output and writes a full transcript to `debug.log` in the script folder. |
-| `-BasePath <folder>` | String | Pre-selects a folder, skipping the graphical folder picker. If the path is invalid, the picker opens as a fallback. |
-| `-SkipArchiveContents` | Switch | Hashes archive files (`.zip`, `.tar`, `.tar.gz`, `.tgz`, `.iso`) as opaque files only, without enumerating their contents. |
+| `-DebugMode` | Switch | Enables verbose debug output and writes a `debug.log` transcript next to the script |
+| `-BasePath` | String | Skips the folder picker and uses the specified path as the scan root (initial build) or comparison target (verification) |
+| `-SkipArchiveContents` | Switch | Hashes archive files as opaque blobs only; internal contents are not enumerated |
 
 ---
 
-## Stage 1: Building the Initial Hash Manifest
+## Workflow
 
-Run the script in the directory you want to monitor. If no existing `*-initial.hashes.csv` file is found next to the script, you will be prompted to build one.
+### Step 1 — Initial Build
 
-A **?** help button in the dialog explains both options.
+Run the script before the transfer (before burning to disc, copying to media, etc.). When no initial CSV is found next to the script, the build dialog appears.
 
-### Automatic
+**Automatic** prompts for a base folder, then recursively hashes every file under it. For supported archive types, the archive itself is hashed and its contents are enumerated individually. Results are written to a dated CSV:
 
-You will be prompted to select a base folder (or the folder is taken from `-BasePath`). The script recursively hashes every file under that folder using SHA-512 and saves the results to a timestamped CSV file (`yyyyMMdd_HHmm-initial.hashes.csv`) next to the script.
+```
+20260514_2226-initial.hashes.csv
+```
 
-For supported archive types, the archive itself is hashed **and** its contents are individually enumerated and hashed (e.g. `build.zip\meta.json`). Use `-SkipArchiveContents` to disable this behaviour.
+A sidecar integrity file and a manifest log are also written:
 
-A companion manifest log (`yyyyMMdd_HHmm-initial.manifest.log`) is also written, listing every hashed entry, the algorithm used, and any archive warnings.
+```
+20260514_2226-initial.hashes.csv.sha512   ← burn this with the CSV
+20260514_2226-initial.manifest.log        ← informational only, do not burn
+```
 
-### Manual
+**Manual** allows you to type filename and hash pairs individually — useful when pulling files from a known-good source where hashes are published.
 
-A form allows you to enter each filename and its hash individually. Click **Add** after each entry and **Done** when finished. The script validates filenames for illegal characters before accepting them. After completing the form, verification begins immediately.
+> **Burn to disc:** Copy the CSV and the `.sha512` sidecar file to the disc or transfer medium alongside the data. Do **not** burn the manifest log — it is informational only and is not validated.
 
----
+### Step 2 — Verification
 
-## Stage 2: Verifying Files
+Run the script after the transfer. When an initial CSV is found next to the script, a mode selection dialog appears before the folder picker.
 
-If an `*-initial.hashes.csv` file is already present next to the script, the script goes straight to verification. You will be prompted to select the folder to verify (the target location where files were transferred). You can also use `-BasePath` to skip this picker.
+#### Basic mode
 
-The script compares current file hashes against the CSV manifest and produces a timestamped verification log (`yyyyMMdd_HHmm-fileverification.log`) next to the script. A summary window shows the count of verified, different, and total files.
+Hashes archive files as opaque blobs only, matching the initial build's top-level entries. Archive-internal entries from the initial CSV are skipped (noted in the log header). Fast — suitable for most transfer verification.
 
-Each file is reported as one of:
+#### Comprehensive mode
 
-- **Verified** — hash matches the manifest
-- **Different** — hash does not match
-- **Missing** — file not found at the target location
-- **Bad Hash** — the stored hash type could not be determined
+Re-runs a full scan of the target folder using the same engine as the initial build, including archive enumeration. Writes a dated rescan CSV:
 
-Archive-internal entries (e.g. `build.zip\file.txt`) stored in the CSV are skipped during verification and counted separately in the log header as informational only.
+```
+20260514_2231-rescan.hashes.csv
+```
 
-If all files verify successfully, the CSV is automatically deleted.
+The two CSVs are then diffed entry by entry. Every file gets a status in the log:
 
----
+| Status | Meaning |
+|---|---|
+| `Verified` | Present in both listings with identical hash |
+| `Different` | Present in both listings with a changed hash |
+| `Missing` | In the initial listing but absent from the rescan |
+| `New` | In the rescan but absent from the initial listing |
 
-## Archive Support
+The log header shows the entry count delta between the two scans. Both CSVs are always kept after a Comprehensive run.
 
-When building the initial manifest (Automatic mode, without `-SkipArchiveContents`), the following archive formats are supported:
-
-| Format | Method | Notes |
-|---|---|---|
-| `.zip` | .NET `ZipFile` | No external tools required |
-| `.tar`, `.tar.gz`, `.tgz` | System `tar` command | Requires `tar` on PATH; files extracted to a temp folder, then hashed and cleaned up |
-| `.iso` | `Mount-DiskImage` | Mounts the ISO, hashes contents, then dismounts. AutoPlay is temporarily suppressed for the current user (HKCU) — no admin rights needed for suppression, but admin rights may be required for mounting on Server SKUs |
-
-Any archive that cannot be opened or enumerated generates a warning. Warnings are collected and written to the manifest log.
+**Use Comprehensive mode when:** the disc contents may have been tampered with at the archive level (e.g. a file added or removed inside a zip), or when a chain-of-custody record is required.
 
 ---
 
 ## Output Files
 
-All output files are written to the script's own directory.
+All output files are written next to the script, not into the scan folder. They are automatically excluded from scan listings so they never appear as spurious "New" entries on a rescan.
 
-| File | Created during | Description |
+| File | Created | Description |
 |---|---|---|
-| `yyyyMMdd_HHmm-initial.hashes.csv` | Stage 1 | Hash manifest used for verification |
-| `yyyyMMdd_HHmm-initial.manifest.log` | Stage 1 (Automatic) | Human-readable listing of all hashed entries and any archive warnings |
-| `yyyyMMdd_HHmm-fileverification.log` | Stage 2 | Per-file verification results and summary |
-| `debug.log` | Any run with `-DebugMode` | Full PowerShell transcript appended each run |
+| `YYYYMMDD_HHMM-initial.hashes.csv` | Initial build | Full hash listing. Burn to disc with the data. |
+| `YYYYMMDD_HHMM-initial.hashes.csv.sha512` | Initial build | SHA-512 hashes of the CSV and the `.ps1` script in `sha512sum` format. Burn to disc with the CSV. |
+| `YYYYMMDD_HHMM-initial.manifest.log` | Initial build | Human-readable listing of all hashed files with algorithm tags. Archive warnings are included. Do not burn. |
+| `YYYYMMDD_HHMM-rescan.hashes.csv` | Comprehensive verify | Full rescan listing. Kept permanently. |
+| `YYYYMMDD_HHMM-fileverification.log` | Either verify mode | Per-file results, hash mismatch details, missing and new file lists. |
+| `debug.log` | When `-DebugMode` is set | Full transcript of the run. |
 
 ---
 
-## Debugging
+## Archive Support
 
-Pass `-DebugMode` at the command line to enable debug output and start a transcript:
+The following archive types are supported during the initial build and Comprehensive verification scans. The archive file itself is always hashed. Internal entries are listed using the path `archive.zip\internal\path\file.ext`.
 
-```powershell
-powershell -File filechecker5_5.ps1 -DebugMode
+| Extension | Method |
+|---|---|
+| `.zip` | Streamed via `System.IO.Compression.ZipFile` — no extraction to disk |
+| `.tar` | Extracted to a temp folder via `tar.exe`, then cleaned up |
+| `.tar.gz` / `.tgz` | Same as `.tar` |
+| `.iso` | Mounted via `Mount-DiskImage`, enumerated, then dismounted. AutoPlay is suppressed for the duration of the mount (HKCU registry key, no admin required). |
+
+If an archive fails to enumerate, a warning is added to the manifest log and the run continues. The archive's own hash is still recorded.
+
+---
+
+## CSV Integrity Sidecar
+
+The `.sha512` sidecar file protects against tampering with the initial hash listing or the script itself between the build and the verification run. It uses standard `sha512sum` format and can be verified independently on Linux or macOS:
+
+```bash
+sha512sum -c 20260514_2226-initial.hashes.csv.sha512
 ```
 
-The transcript is written (appended) to `debug.log` in the script folder. You can also set `$DebugPreference = 'Continue'` at the top of the script for inline debug output without a transcript.
+### Behaviour at verification time
+
+| Condition | Result |
+|---|---|
+| Sidecar file not found | **Blocked.** The sidecar must be present alongside the CSV. |
+| Script (`.ps1`) hash mismatch | **Blocked.** The script may have had malicious code added. |
+| CSV hash mismatch | **Warning dialog** with Yes/No (default: No). The CSV may have been modified or corrupted; the user may choose to continue with full awareness. |
+| All hashes match | Verification proceeds normally. |
+
+---
+
+## Verification Log Format
+
+```
+File verification run  [Basic]
+Compared against: D:\disc
+Initial CSV    : D:\disc\20260514_2226-initial.hashes.csv
+Archive-internal entries skipped: 1160 (informational only)
+
+Verified  - AlmaLinux-9.4-aarch64-boot.iso
+Verified  - All the Mods 9-0.3.2.zip
+Different - filechecker5_10.ps1
+Missing   - NBTExplorer-2.8.0\NBTExplorer.exe
+Verified  - NBTExplorer-2.8.0\NBTUtil.exe
+
+*********************
+Hash mismatches:
+
+  File:     filechecker5_10.ps1
+    Original: A97330D8...
+    Computed: 1F951EB0...
+
+*********************
+Missing files:
+  NBTExplorer-2.8.0\NBTExplorer.exe
+```
+
+Comprehensive mode adds a `Rescan CSV` header line, an entry count delta line, and a `New files` section if files were found in the rescan that were absent from the initial listing.
+
+---
+
+## Notes for Cybersecurity Use
+
+- **The sidecar file is the root of trust.** Keep a copy of the `.sha512` file somewhere independent of the disc (printed, in a separate system, or committed to a repository) to enable out-of-band verification.
+- **Comprehensive mode is the paranoid choice.** It will detect a file added to the inside of a zip or ISO after the initial build — something Basic mode cannot catch.
+- **The script covers itself.** The `.ps1` file's hash is recorded in the sidecar. If the script is replaced with a malicious version that skips the integrity check, it will fail its own hash before any verification runs.
+- **Hash algorithm:** SHA-512 throughout. No MD5 or SHA-1 is used in any output the script generates; those algorithms appear in the hash-type detection table only for compatibility when reading manually-entered hashes in the Manual build mode.
