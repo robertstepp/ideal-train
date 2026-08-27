@@ -1,0 +1,14 @@
+---
+# Codacy configuration.
+#
+# Archive/ holds retired versions of the script, kept for reference only. They
+# are never edited, so lint findings against them are permanent noise: a full
+# PSScriptAnalyzer pass over that folder produces 96 findings, all of which are
+# issues already fixed in the current script.
+#
+# This excludes them from the analysis itself. The paths-ignore filters in
+# workflows/codacy.yml are a separate lever -- those only stop the workflow
+# running when a push touches nothing but Archive/, and do not apply to the
+# scheduled weekly scan.
+exclude_paths:
+  - 'Archive/**'

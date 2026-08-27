@@ -16,9 +16,18 @@ name: Codacy Security Scan
 on:
   push:
     branches: [ "main" ]
+    # Archive/ holds retired versions that are never edited to fix lint.
+    # A push touching only those files should not spend a CI run.
+    # Note: paths-ignore applies to push and pull_request only -- the
+    # scheduled run below is not filtered by it. Path exclusion for the
+    # scan itself lives in .codacy.yml at the repository root.
+    paths-ignore:
+      - 'Archive/**'
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ "main" ]
+    paths-ignore:
+      - 'Archive/**'
   schedule:
     - cron: '16 11 * * 0'
 

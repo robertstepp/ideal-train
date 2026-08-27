@@ -12,8 +12,16 @@ name: PSScriptAnalyzer
 on:
   push:
     branches: [ "main" ]
+    # Archive/ holds retired versions that are never edited to fix lint.
+    # A push touching only those files should not spend a CI run.
+    # Note: paths-ignore applies to push and pull_request only -- the
+    # scheduled run below is not filtered by it.
+    paths-ignore:
+      - 'Archive/**'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - 'Archive/**'
   schedule:
     - cron: '34 22 * * 5'
 
@@ -35,9 +43,16 @@ jobs:
         uses: microsoft/psscriptanalyzer-action@6b2948b1944407914a58661c49941824d149734f
         with:
           # Check https://github.com/microsoft/action-psscriptanalyzer for more info about the options.
-          # The below set up runs PSScriptAnalyzer to your entire repository and runs some basic security rules.
-          path: .\
-          recurse: true
+          # Root-level scripts only. 'path: .\' with recurse:true analysed the
+          # whole tree including Archive/, which contributed 96 findings against
+          # retired versions (chiefly PSUseSingularNouns and
+          # PSUseShouldProcessForStateChangingFunctions, both fixed in the
+          # current script). The wildcard also survives a version bump, so there
+          # is no filename to update here when 5_13 becomes 5_14.
+          # Forward slashes: this runs on ubuntu-latest, where PowerShell treats
+          # a backslash as a literal character rather than a path separator.
+          path: ./*.ps1
+          recurse: false
           # Include your own basic security rules. Removing this option will run all the rules
           includeRule: '"PSAvoidGlobalAliases", "PSAvoidUsingConvertToSecureStringWithPlainText"'
           output: results.sarif
