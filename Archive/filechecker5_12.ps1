@@ -61,8 +61,13 @@
         contradictory comments. Comprehensive therefore now consumes the initial
         listing on a clean final scan, where before it never did. The rescan CSV
         is always kept, and nothing is deleted when differences were found.
-      * Added: choice of manifest filename - timestamped (original) or
-        Filelist-<scanned folder>.txt.
+      * Added: the manifest filename is typed into a box prefilled with
+        Filelist-<scanned folder>.txt, replacing the earlier choice between two
+        fixed conventions. .txt is appended if no extension is given.
+      * Changed: the manifest Files section lists every file in the transfer
+        folder, the CSV and .sha512 included. They are written after the scan so
+        they are appended by name rather than hashed. The separate "Transfer
+        files" section is gone -- its two entries are now in the main listing.
       * The manifest header counts folders; the listing itself is files only,
         since every folder holding a file is already its path prefix there.
       * Faster scanning: one reusable hash provider, buffered sequential reads,
@@ -73,6 +78,9 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseShouldProcessForStateChangingFunctions', '',
     Justification = 'Internal helper functions in a standalone script; ShouldProcess/-WhatIf would add boilerplate with no user benefit.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSReviewUnusedParameter', 'ReportExtraFiles',
+    Justification = 'False positive: the rule only looks inside the declaring scope. This script-level parameter is read in Compare-HashEntryThorough (six times) and Select-VerificationMode.')]
 param(
     [switch] $DebugMode,
     [string] $BasePath,
@@ -154,13 +162,16 @@ function Search-InitialFileExistence {
     # Sort descending so the newest timestamped CSV wins deterministically.
     # Get-ChildItem's own order is filesystem-dependent, which meant that with
     # two listings present the script could silently verify against the older.
-    $matches = @(Get-ChildItem -Path (Get-ParentScriptFolder) -Filter "*-initial.hashes.csv" `
+    # Not $matches: that is the automatic variable -match and switch -regex fill
+    # in, and this script uses -match elsewhere. Assigning to it would clobber
+    # those results (PSAvoidAssignmentToAutomaticVariable).
+    $csvFiles = @(Get-ChildItem -Path (Get-ParentScriptFolder) -Filter "*-initial.hashes.csv" `
                     -File -ErrorAction SilentlyContinue | Sort-Object Name -Descending)
-    if ($matches.Count -eq 0) { return $false }
-    if ($matches.Count -gt 1) {
-        Write-Warning "$($matches.Count) initial CSVs found; using the newest: $($matches[0].Name)"
+    if ($csvFiles.Count -eq 0) { return $false }
+    if ($csvFiles.Count -gt 1) {
+        Write-Warning "$($csvFiles.Count) initial CSVs found; using the newest: $($csvFiles[0].Name)"
     }
-    return $matches[0].FullName
+    return $csvFiles[0].FullName
 }
 
 function Initialize-InitialFilePath {
@@ -944,55 +955,61 @@ function Invoke-FileScan {
 #  Initial file builders
 # =====================================================================
 
-function Select-ManifestNaming {
-    # Returns 'Timestamp' (original convention) or 'Filelist'.
+function Get-ManifestFileName {
+    # Free-text manifest filename, prefilled with Filelist-<scanned folder>.txt.
+    #
+    # This replaced a two-option radio dialog (timestamped vs folder-named):
+    # people wanted to name the file themselves rather than pick between two
+    # fixed conventions. Typing a timestamped name still gets the old result.
+    #
     # Only the human-readable manifest is affected -- the CSV and its .sha512
     # keep their timestamped names, because verification finds the CSV by the
     # '*-initial.hashes.csv' glob and pairs the sidecar off that exact name.
-    param([Parameter(Mandatory)][string] $TimestampName,
-          [Parameter(Mandatory)][string] $FilelistName)
+    #
+    # Returns a bare filename, never a path.
+    param([Parameter(Mandatory)][string] $DefaultName)
 
     $form = New-FormControl Form @{
-        Text = 'Manifest File Name'; Size = (New-Sz 470 260); StartPosition = 'CenterScreen'
+        Text = 'Manifest File Name'; Size = (New-Sz 470 220); StartPosition = 'CenterScreen'
     }
     $label = New-FormControl Label @{
-        Location = (New-Pt 15 12); Size = (New-Sz 420 20)
-        Text = 'Choose the filename for the manifest (the readable file listing):'
+        Location = (New-Pt 15 12); Size = (New-Sz 425 20)
+        Text = 'Name for the manifest (the readable file listing):'
     }
-    $stampRb = New-FormControl RadioButton @{
-        Location = (New-Pt 15 40); Size = (New-Sz 420 20)
-        Text = "Timestamped:  $TimestampName"; Checked = $true
+    $textBox = New-FormControl TextBox @{
+        Location = (New-Pt 15 36); Size = (New-Sz 425 22); Text = $DefaultName
     }
-    $listRb = New-FormControl RadioButton @{
-        Location = (New-Pt 15 65); Size = (New-Sz 420 20)
-        Text = "Folder name:  $FilelistName"
+    $hint = New-FormControl Label @{
+        Location = (New-Pt 15 68); Size = (New-Sz 425 76)
+        Text = "Written into the transfer folder next to the CSV and .sha512." +
+               "`r`n`r`nIf no extension is given, .txt is added. Characters that " +
+               "cannot appear in a filename are replaced with _. If the name is " +
+               "already taken, _2, _3, ... is appended rather than overwriting."
     }
-    $descLabel = New-FormControl Label @{
-        Location = (New-Pt 32 92); Size = (New-Sz 400 70)
-    }
-    $stampDesc = "The original convention. Sorts chronologically and never " +
-                 "collides, so repeated runs against the same folder each keep " +
-                 "their own manifest."
-    $listDesc  = "Named after the folder that was scanned. Easier to identify at " +
-                 "a glance. A repeat run of the same folder is saved as " +
-                 "_2, _3, ... rather than overwriting."
-    $descLabel.Text = $stampDesc
 
-    $stampRb.Add_CheckedChanged({ if ($stampRb.Checked) { $descLabel.Text = $stampDesc } })
-    $listRb.Add_CheckedChanged({  if ($listRb.Checked)  { $descLabel.Text = $listDesc  } })
+    # Pre-seeded so closing the form with the X still yields a usable name.
+    $script:manifestFileName = $DefaultName
 
-    $script:manifestNaming = 'Timestamp'
     $okBtn = New-FormControl Button @{
-        Location = (New-Pt 175 180); Size = (New-Sz 100 28); Text = 'Continue'
+        Location = (New-Pt 175 152); Size = (New-Sz 100 28); Text = 'Continue'
     }
     $okBtn.Add_Click({
-        $script:manifestNaming = if ($listRb.Checked) { 'Filelist' } else { 'Timestamp' }
+        $val = $textBox.Text.Trim()
+        if ($val -eq '') { $val = $DefaultName }
+        # Strips any path separators too -- this must stay a bare filename, so
+        # a typed path cannot redirect the manifest out of the transfer folder.
+        $val = ConvertTo-SafeFileNamePart $val
+        if (-not [System.IO.Path]::GetExtension($val)) { $val += '.txt' }
+        $script:manifestFileName = $val
         $form.Close()
     })
     $form.AcceptButton = $okBtn
-    $form.Controls.AddRange(@($label, $stampRb, $listRb, $descLabel, $okBtn))
-    try { $form.ShowDialog() | Out-Null } finally { $form.Dispose() }
-    return $script:manifestNaming
+    $form.Controls.AddRange(@($label, $textBox, $hint, $okBtn))
+    try {
+        $textBox.Select()
+        $form.ShowDialog() | Out-Null
+    } finally { $form.Dispose() }
+    return $script:manifestFileName
 }
 
 function Copy-ScriptToTransferFolder {
@@ -1077,17 +1094,11 @@ function Set-InitialFileAutomatic {
     $csvPath     = Join-Path $outputDir ($stamp + "-initial.hashes.csv")
     $sidecarPath = Join-Path $outputDir ($stamp + "-initial.hashes.csv.sha512")
 
-    # Manifest name: original timestamped convention, or Filelist-<folder>.txt.
-    $timestampManifestName = $stamp + "-initial.manifest.log"
-    $filelistManifestName  = "Filelist-$(Get-ScanFolderLabel $scanRoot).txt"
-    $naming = Select-ManifestNaming -TimestampName $timestampManifestName `
-                                    -FilelistName  $filelistManifestName
-    $manifestLog = if ($naming -eq 'Filelist') {
-        Get-NonCollidingPath (Join-Path $outputDir $filelistManifestName)
-    } else {
-        Join-Path $outputDir $timestampManifestName
-    }
-    Write-Debug "Manifest naming=$naming -> $manifestLog"
+    # Manifest name: whatever the user types, defaulting to Filelist-<folder>.txt.
+    $defaultManifestName = "Filelist-$(Get-ScanFolderLabel $scanRoot).txt"
+    $manifestName = Get-ManifestFileName -DefaultName $defaultManifestName
+    $manifestLog  = Get-NonCollidingPath (Join-Path $outputDir $manifestName)
+    Write-Debug "Manifest name='$manifestName' -> $manifestLog"
 
     # Bare filenames for the manifest listing (the files to burn).
     $csvName     = Split-Path -Leaf $csvPath
@@ -1116,7 +1127,11 @@ function Set-InitialFileAutomatic {
     [void]$lines.Add($transferName)
     [void]$lines.Add("Built     : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     [void]$lines.Add("Scan root : $scanRoot")
-    [void]$lines.Add("Entries   : $($output.Count)")
+    # Entries = rows in the CSV (hashed). Listed = lines in the Files section,
+    # which is two longer because the CSV and .sha512 are named there but are
+    # not themselves hashed entries.
+    [void]$lines.Add("Entries   : $($output.Count)  (hashed, in the CSV)")
+    [void]$lines.Add("Listed    : $($output.Count + 2)  (files below)")
     [void]$lines.Add("Skip arc. : $SkipArchiveContents")
     [void]$lines.Add("Folders   : $($script:LastScanFolders.Count)")
     [void]$lines.Add("")
@@ -1125,21 +1140,21 @@ function Set-InitialFileAutomatic {
     # a file already appears as that file's path prefix in the listing below, so
     # a separate section just repeats the same information. (The count is the
     # only trace of a folder that contains no files at all.)
+    # Every file that ends up in the transfer folder, in one listing.
+    #
+    # The scan covers the payload and the deployed .ps1 (copied in before the
+    # scan, so it is hashed like any other file). The CSV and .sha512 are
+    # written after the scan and so cannot be scan results -- they are appended
+    # here by name. They carry no hash in this listing: the CSV cannot contain
+    # its own hash, and the .sha512 is what records the CSV's.
+    #
+    # The manifest itself is deliberately not listed. It is the file being read,
+    # and it is still written into the transfer folder regardless.
     [void]$lines.Add(("=" * 21))
     [void]$lines.Add("Files:")
     foreach ($e in $output) {
         [void]$lines.Add("  $($e.FilePath)")
     }
-    [void]$lines.Add("")
-    [void]$lines.Add(("=" * 21))
-    # Only the two files that are written after the scan and are therefore NOT
-    # in the listing above. Deliberately excluded:
-    #   - this manifest, which is the file being read (self-referential), and
-    #   - the script, which was copied in before the scan and so already appears
-    #     in the listing above and is verified like any other transferred file.
-    # Both are still written into the transfer folder; they just do not need
-    # calling out as something to carry across.
-    [void]$lines.Add("Transfer files (written after the scan, so not in the listing above):")
     [void]$lines.Add("  $csvName")
     [void]$lines.Add("  $sidecarName")
     if ($script:ArchiveWarnings.Count -gt 0) {
@@ -1886,11 +1901,11 @@ Choose how to build the initial listing:
              Mounting an ISO does not require elevation on client
              Windows; elevation is only reported if a mount fails.
 
-             You will be asked how to name the manifest (the readable
-             listing of every folder and file):
-               20260825_1430-initial.manifest.log   (timestamped)
-               Filelist-<scanned folder>.txt        (folder name)
-             The CSV and .sha512 keep their timestamped names either way.
+             You will be asked to name the manifest (the readable
+             listing of every file). The box is prefilled with
+             Filelist-<scanned folder>.txt and can be edited freely;
+             .txt is added if you leave off an extension. The CSV and
+             .sha512 always keep their timestamped names.
 
   Manual:    You will manually enter each file and its hash.
 
