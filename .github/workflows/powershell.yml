@@ -42,7 +42,8 @@ jobs:
       - name: Run PSScriptAnalyzer
         uses: microsoft/psscriptanalyzer-action@6b2948b1944407914a58661c49941824d149734f
         with:
-          # Check https://github.com/microsoft/action-psscriptanalyzer for more info about the options.
+          # Options: https://github.com/microsoft/psscriptanalyzer-action
+          # (the action-psscriptanalyzer URL in the original template 404s)
           # Root-level scripts only. 'path: .\' with recurse:true analysed the
           # whole tree including Archive/, which contributed 96 findings against
           # retired versions (chiefly PSUseSingularNouns and
@@ -53,8 +54,25 @@ jobs:
           # a backslash as a literal character rather than a path separator.
           path: ./*.ps1
           recurse: false
-          # Include your own basic security rules. Removing this option will run all the rules
-          includeRule: '"PSAvoidGlobalAliases", "PSAvoidUsingConvertToSecureStringWithPlainText"'
+          # No includeRule: the full default rule set runs (75 rules -- 8 Error,
+          # 56 Warning, 11 Information). The sample config that shipped with this
+          # workflow narrowed it to two security rules, neither of which can fire
+          # on a script that uses no aliases and handles no credentials, so it
+          # reported clean regardless of code quality.
+          #
+          # Rules deliberately silenced live with the code they apply to, as
+          # SuppressMessageAttribute entries in the .ps1 with a stated
+          # justification, rather than being switched off for the whole repo.
+          #
+          # Settings file supplies TargetVersions for PSUseCompatibleSyntax,
+          # which is in the default rule set but silently does nothing until it
+          # is told which PowerShell versions to check against. Targeting 5.1
+          # and 7.0 makes PowerShell 7-only syntax (ternary, ??, &&/||) an Error,
+          # since it is a parse failure under powershell.exe.
+          #
+          # The input takes a path, not a hashtable. Forward slashes again for
+          # the ubuntu-latest runner.
+          settings: ./PSScriptAnalyzerSettings.psd1
           output: results.sarif
 
       # Upload the SARIF file generated in the previous step
