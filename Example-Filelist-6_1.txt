@@ -1,0 +1,66 @@
+STANDALONE XFER 2026-09-09 / batch 04
+Built     : 2026-09-09 19:19:00
+Scan root : C:\Users\rstepp\AppData\Local\Temp\claude\E--PS-FileHasher\580e3df5-ea33-4128-9d4e-4a0319f8ab2b\scratchpad\xfer\Disc
+Entries   : 22  (hashed, in the CSV)
+Listed    : 24  (files below)
+Skip arc. : False
+Folders   : 4
+
+=====================
+Summary by tier:
+  Tier 01  Binaries & installers                        6
+  Tier 02  Scripts                                      4
+  Tier 03  Libraries & drivers                          1
+  Tier 04  Containers                                   4
+  Tier 05  ANOMALIES - justify before transfer          4   <-- REVIEW
+  Tier 06  Data                                         5
+
+  Note: 3 entries are inside an archive and
+        classified on extension alone - no signature check is possible
+        without a file on disk to read.
+
+=====================
+Tier 01 - Binaries & installers  (6)
+  AV\20260909-001-x86.exe
+  Installers\AcroRdrDCUpd2400820555.msp
+  Installers\firefox-128.3.0-1.el9.x86_64.rpm
+  Installers\SEP_14.3_RU8_Setup.exe
+  Nessus\sc-plugins-diff.tar.gz\compliance_check.nbin
+  WSUS\windows10.0-kb5041580-x64.msu
+
+=====================
+Tier 02 - Scripts  (4)
+  filechecker6_1_proposed.ps1
+  Installers\install-all.cmd
+  Nessus\sc-plugins-diff.tar.gz\ssh_get_info.nasl
+  Nessus\sc-plugins-diff.tar.gz\torture_cgi.inc
+
+=====================
+Tier 03 - Libraries & drivers  (1)
+  Installers\msvcp140.dll
+
+=====================
+Tier 04 - Containers  (4)
+  AV\bytecode.cvd
+  AV\daily.cvd
+  Nessus\sc-plugins-diff.tar.gz
+  WSUS\Windows10.0-KB5041580-x64.cab
+
+=====================
+Tier 05 - ANOMALIES - justify before transfer  (4)
+  AV\defs.dat
+      ^ PE header in a '.dat' file - extension does not match content
+  Installers\helper
+      ^ no extension; loose ELF binary, outside any package
+  Installers\postinst
+      ^ no extension (shebang script)
+  WSUS\update.txt.exe
+      ^ double extension '.txt.exe'
+
+=====================
+Tier 06 - Data  (5)
+  20260909_1919-initial.hashes.csv
+  20260909_1919-initial.hashes.csv.sha512
+  AV\daily-27342.cdiff
+  Installers\readme.txt
+  WSUS\package.xml
