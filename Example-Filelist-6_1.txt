@@ -1,10 +1,12 @@
-STANDALONE XFER 2026-09-09 / batch 04
-Built     : 2026-09-09 19:19:00
-Scan root : C:\Users\rstepp\AppData\Local\Temp\claude\E--PS-FileHasher\580e3df5-ea33-4128-9d4e-4a0319f8ab2b\scratchpad\xfer\Disc
+STANDALONE XFER / batch 04
+Built     : 2026-09-09 20:36:52
+Scan root : C:\Users\rstepp\AppData\Local\Temp\claude\E--PS-FileHasher\580e3df5-ea33-4128-9d4e-4a0319f8ab2b\scratchpad\v2\Disc
 Entries   : 22  (hashed, in the CSV)
 Listed    : 24  (files below)
 Skip arc. : False
 Folders   : 4
+Enumerate : 50 ms
+Hash time : 667 ms
 
 =====================
 Summary by tier:
@@ -30,7 +32,7 @@ Tier 01 - Binaries & installers  (6)
 
 =====================
 Tier 02 - Scripts  (4)
-  filechecker6_1_proposed.ps1
+  filechecker6_1_proposedV2.ps1
   Installers\install-all.cmd
   Nessus\sc-plugins-diff.tar.gz\ssh_get_info.nasl
   Nessus\sc-plugins-diff.tar.gz\torture_cgi.inc
@@ -59,8 +61,8 @@ Tier 05 - ANOMALIES - justify before transfer  (4)
 
 =====================
 Tier 06 - Data  (5)
-  20260909_1919-initial.hashes.csv
-  20260909_1919-initial.hashes.csv.sha512
+  20260909_2036-initial.hashes.csv
+  20260909_2036-initial.hashes.csv.sha512
   AV\daily-27342.cdiff
   Installers\readme.txt
   WSUS\package.xml
