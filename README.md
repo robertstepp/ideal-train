@@ -1,4 +1,4 @@
-﻿# File Checker v6.0
+﻿# File Checker v6.1
 
 **Author:** Robert Stepp — <robert@robertstepp.ninja>
 
@@ -14,7 +14,7 @@ Earlier versions wrote the hash listing next to the script. If the script lived 
 
 ```
 E:\PS_FileHasher\                    D:\Transfer\
-  filechecker6_0.ps1        ──►       filechecker6_0.ps1        (copied in)
+  filechecker6_1.ps1        ──►       filechecker6_1.ps1        (copied in)
                                        20260825_2130-initial.hashes.csv
                                        20260825_2130-initial.hashes.csv.sha512
                                        Filelist-Transfer.txt
@@ -43,19 +43,19 @@ Full-path commands for every task. Substitute your own paths; `E:\PS_FileHasher`
 Run the script from wherever it lives. It copies itself into the folder you pick.
 
 ```powershell
-powershell -File "E:\PS_FileHasher\filechecker6_0.ps1"
+powershell -File "E:\PS_FileHasher\filechecker6_1.ps1"
 ```
 
 Skip the folder picker by naming the transfer folder directly:
 
 ```powershell
-powershell -File "E:\PS_FileHasher\filechecker6_0.ps1" -BasePath "D:\Transfer"
+powershell -File "E:\PS_FileHasher\filechecker6_1.ps1" -BasePath "D:\Transfer"
 ```
 
 Hash archives as opaque blobs, without enumerating their contents (much faster on large ISOs and zips):
 
 ```powershell
-powershell -File "E:\PS_FileHasher\filechecker6_0.ps1" -BasePath "D:\Transfer" -SkipArchiveContents
+powershell -File "E:\PS_FileHasher\filechecker6_1.ps1" -BasePath "D:\Transfer" -SkipArchiveContents
 ```
 
 ### Verify (at the destination)
@@ -63,19 +63,19 @@ powershell -File "E:\PS_FileHasher\filechecker6_0.ps1" -BasePath "D:\Transfer" -
 Run the **copy that travelled with the data**, not the original. It finds the listing beside itself and goes straight to the verification dialog.
 
 ```powershell
-powershell -File "D:\Transfer\filechecker6_0.ps1"
+powershell -File "D:\Transfer\filechecker6_1.ps1"
 ```
 
 Verifying a destination that already holds unrelated data (a patching folder), skipping the folder picker:
 
 ```powershell
-powershell -File "D:\Transfer\filechecker6_0.ps1" -BasePath "D:\Transfer"
+powershell -File "D:\Transfer\filechecker6_1.ps1" -BasePath "D:\Transfer"
 ```
 
 Flag files present at the destination that were not in the initial listing, instead of ignoring them:
 
 ```powershell
-powershell -File "D:\Transfer\filechecker6_0.ps1" -ReportExtraFiles
+powershell -File "D:\Transfer\filechecker6_1.ps1" -ReportExtraFiles
 ```
 
 ### Verify several destinations from one listing
@@ -83,11 +83,11 @@ powershell -File "D:\Transfer\filechecker6_0.ps1" -ReportExtraFiles
 Tick **"Intermediate scan - keep the initial listing"** in the mode dialog for every destination except the last. The listing survives, and its log and rescan files are tagged `-intermediate`. Leave the box unticked on the final destination and the listing is consumed.
 
 ```powershell
-powershell -File "D:\Transfer\filechecker6_0.ps1" -BasePath "E:\CopyOne"
+powershell -File "D:\Transfer\filechecker6_1.ps1" -BasePath "E:\CopyOne"
 ```
 
 ```powershell
-powershell -File "D:\Transfer\filechecker6_0.ps1" -BasePath "E:\CopyTwo"
+powershell -File "D:\Transfer\filechecker6_1.ps1" -BasePath "E:\CopyTwo"
 ```
 
 ### Troubleshoot a run
@@ -95,11 +95,11 @@ powershell -File "D:\Transfer\filechecker6_0.ps1" -BasePath "E:\CopyTwo"
 Writes a full transcript to `debug.log` next to the script that is running:
 
 ```powershell
-powershell -File "E:\PS_FileHasher\filechecker6_0.ps1" -DebugMode
+powershell -File "E:\PS_FileHasher\filechecker6_1.ps1" -DebugMode
 ```
 
 ```powershell
-powershell -File "E:\PS_FileHasher\filechecker6_0.ps1" -DebugMode -SkipArchiveContents
+powershell -File "E:\PS_FileHasher\filechecker6_1.ps1" -DebugMode -SkipArchiveContents
 ```
 
 ### Verify the listing out of band
@@ -113,7 +113,7 @@ cd /mnt/d/Transfer && sha512sum -c 20260825_2130-initial.hashes.csv.sha512
 Or in PowerShell, comparing against the sidecar's recorded value:
 
 ```powershell
-Get-FileHash "D:\Transfer\filechecker6_0.ps1" -Algorithm SHA512 | Format-List
+Get-FileHash "D:\Transfer\filechecker6_1.ps1" -Algorithm SHA512 | Format-List
 ```
 
 ### PowerShell 7
@@ -121,7 +121,7 @@ Get-FileHash "D:\Transfer\filechecker6_0.ps1" -Algorithm SHA512 | Format-List
 Every command above works with `pwsh` in place of `powershell`. PowerShell 7 gets the modern shell folder picker, which handles Libraries, OneDrive, and typed paths; Windows PowerShell 5.1 gets the legacy folder tree.
 
 ```powershell
-pwsh -File "E:\PS_FileHasher\filechecker6_0.ps1"
+pwsh -File "E:\PS_FileHasher\filechecker6_1.ps1"
 ```
 
 ---
@@ -169,7 +169,7 @@ of this changes the listing: results are put back into scan order before anythin
 is written.
 
 ```powershell
-powershell -File "E:\PS_FileHasher\filechecker6_0.ps1" -Parallel 8
+powershell -File "E:\PS_FileHasher\filechecker6_1.ps1" -Parallel 8
 ```
 
 **The default is `4`, or the CPU count if that is lower.** It is deliberately not
@@ -183,7 +183,7 @@ the children entirely and hashes in the running process, which is exactly what
 every version up to v5.13 did.
 
 ```powershell
-powershell -File "D:\Transfer\filechecker6_0.ps1" -Parallel 1
+powershell -File "D:\Transfer\filechecker6_1.ps1" -Parallel 1
 ```
 
 Both verification modes benefit. Basic verification hashes the files named in the
@@ -283,7 +283,7 @@ The CSV and `.sha512` always keep their timestamped names — verification finds
 
 > **If you use a custom manifest name,** be aware that only the default `Filelist-*.txt` and `*-initial.manifest.log` names are recognised as script output and kept out of later scans. A manifest called something else that is left in the folder will be hashed as ordinary payload if you rebuild that folder, and will show up as an extra file on a Comprehensive verify (discarded by default). Delete or move old manifests before rebuilding if that matters to you.
 
-The manifest's `Files:` section lists **every file in the transfer folder** — the payload, the deployed `.ps1`, the CSV, and the `.sha512`. The CSV and sidecar are written after the scan, so they are named in the listing but carry no hash of their own: the CSV cannot contain its own hash, and the `.sha512` is what records the CSV's. The manifest does not list itself.
+The manifest lists **every file in the transfer folder** — the payload, the deployed `.ps1`, the CSV, and the `.sha512` — grouped into tiers. The CSV and sidecar are written after the scan, so they are named in the listing but carry no hash of their own: the CSV cannot contain its own hash, and the `.sha512` is what records the CSV's. The manifest does not list itself. See [Manifest Tiers](#manifest-tiers).
 
 **Manual** allows you to type filename and hash pairs individually — useful when pulling files from a known-good source where hashes are published. Manual mode has no folder picker, so its CSV and sidecar are written next to the script rather than into a transfer folder.
 
@@ -331,13 +331,49 @@ The rescan CSV from a Comprehensive run is always kept, as the record of what wa
 
 ---
 
+## Manifest Tiers
+
+The manifest groups its listing so that everything cyber counts as executable sorts to the top, and anything needing justification before the media crosses is broken out on its own.
+
+Per that ruling, **"executable" means Windows executables and scripts**. Libraries and drivers are not executables; nothing Linux is; bytecode is not evaluated.
+
+| Tier | Holds | Notes |
+|---|---|---|
+| **01 Windows executables** | `.exe .com .scr .pif .msi .msp .msu` | What Windows runs. A self-extracting `.exe` — Symantec's Intelligent Updater, for instance — belongs here, not with the definitions it carries |
+| **02 Scripts** | `.ps1 .psm1 .bat .cmd .vbs .wsf .js .hta`, `.nasl .inc`, `.sh .py .pl .rb` | Interpreted code. Separate from Tier 01 because it is human-readable: a reviewer can diff a script. Nessus `.nasl` plugins are code that runs on the scanner |
+| **03 Containers** | `.cab .psf .tar.gz .zip .iso .cvd .jdb .nbin`, `.rpm .deb` | Opaque files carrying code without being executables. Linux packages sit here — their `%pre`/`%post` scriptlets run as root, but the ruling puts Linux out of scope, and Containers keeps them visible |
+| **04 ANOMALIES** | *conditions, not extensions* | Flagged for justification. Marked `<-- REVIEW` in the summary, and the count is shown in the completion dialog |
+| **05 Data** | everything else, including `.dll .sys .ocx .cpl .drv` | Libraries and drivers land here. They are code, but nothing launches them directly |
+
+### What lands in Anomalies
+
+| Condition | Caught by | Example |
+|---|---|---|
+| A Windows executable wearing another extension | signature | `defs.dat` beginning `4D 5A` |
+| No extension | filename | `postinst`, `helper` |
+| Double extension | filename | `update.txt.exe` |
+| Right-to-left override in the name | filename | `U+202E` disguising the real extension |
+
+The first is the reason signatures are read at all. It is checked against a list of extensions where a PE header is *expected*, so a `.dll` sitting in Data is not falsely flagged — a PE is exactly what a `.dll` should be.
+
+### Limits worth knowing
+
+- **Archive-internal entries are classified on extension alone.** There is no file on disk to read a signature from, so a clean anomaly tier is not proof that nothing is hiding inside the archives. The manifest states this inline whenever such entries are present.
+- **The plugin feed itemises.** `.tar.gz` is expanded one level, so a Nessus feed contributes a Tier 02 line per plugin — tens of thousands of them. Use `-SkipArchiveContents` to keep the feed as a single hashed archive.
+- **Bytecode is not evaluated.** `bytecode.cvd` carries ClamAV bytecode signatures that execute in ClamAV's interpreter; it is treated as an ordinary container. An accepted risk, not an oversight.
+- **Tiers are a manifest concern only.** The CSV and the `.sha512` sidecar are byte-for-byte what v6.0 produced. Classification runs in the parent once both are written and the hashing workers have exited.
+
+`Transfer-Manifest-Taxonomy.docx` holds the full taxonomy, the accepted risks, and the open questions. `Example-Filelist-6_1.txt` is a sample manifest built from a representative payload.
+
+---
+
 ## Output Files
 
 **Initial build** writes into the transfer folder, next to the deployed copy of the script:
 
 | File | Description |
 |---|---|
-| `filechecker6_0.ps1` | The script itself, copied in before the scan and included in the listing |
+| `filechecker6_1.ps1` | The script itself, copied in before the scan and included in the listing |
 | `YYYYMMDD_HHMM-initial.hashes.csv` | Full hash listing |
 | `YYYYMMDD_HHMM-initial.hashes.csv.sha512` | SHA-512 hashes of the CSV and the `.ps1`, in `sha512sum` format |
 | `Filelist-<folder>.txt`, or whatever you name it | Human-readable listing of every file in the folder, plus any archive warnings |
@@ -392,7 +428,7 @@ Matching is exact, not fuzzy — a folder called `Recycler Parts`, a file called
 `Thumbs.db.bak`, and a `found.0000` that no `chkdsk` created are all kept.
 
 ```powershell
-powershell -File "E:\PS_FileHasher\filechecker6_0.ps1" -IncludeSystemFiles
+powershell -File "E:\PS_FileHasher\filechecker6_1.ps1" -IncludeSystemFiles
 ```
 
 `-IncludeSystemFiles` hashes everything, for forensic work where the volume
@@ -494,6 +530,17 @@ This is the canonical change log — the script itself does not carry one. Earli
 
 Versions 4.1–4.4, 5.0–5.4, and 5.6 are not in the archive, so there are no entries for them. The notes for 5.7, 5.8, and 5.9 come from change logs those versions carried in their own headers; the rest are derived by comparing the archived scripts against each other.
 
+### v6.1
+
+Manifest ordering only. The CSV and the `.sha512` sidecar are byte-for-byte what v6.0 produced — verified by running both versions over identical trees and diffing the output.
+
+- **The manifest listing is grouped into tiers**, so that everything cyber counts as executable sorts to the top: `01` Windows executables, `02` scripts, `03` containers, `04` anomalies, `05` data. See [Manifest Tiers](#manifest-tiers)
+- Per the cyber ruling, **"executable" means Windows executables and scripts**. Libraries and drivers (`.dll .sys .ocx .cpl .drv`) are not executables and fall to Data. Nothing Linux is: `.rpm` and `.deb` sit with the containers, which keeps them visible without claiming otherwise. Bytecode is not evaluated, so Java is absent and nothing reads inside ClamAV definition files
+- **Files are classified by extension, and by file signature where a real file exists on disk.** The signature check exists for one purpose: catching a Windows executable wearing another extension, such as a PE header inside a `.dat`. It is tested against extensions where a PE is *expected*, so a `.dll` in Data is not falsely flagged. Archive-internal entries have no file to read and are classified on extension alone — the manifest says so rather than leaving it implied
+- No ELF or Mach-O detection. With no tier for either to land in, reading those signatures would only imply a judgement the ruling does not make
+- **The anomaly count is surfaced in the completion dialog**, not only at the bottom of the manifest — a sixty-thousand-line WSUS listing is not somewhere findings should have to be hunted for
+- Removed the **Data Transfer Name** prompt. The manifest's first line is the default, and the scan root and build timestamp on the lines below already identify a run
+
 ### v6.0
 
 - **Hashing runs in parallel across child processes.** The script is now the
@@ -561,7 +608,7 @@ Versions 4.1–4.4, 5.0–5.4, and 5.6 are not in the archive, so there are no e
   routinely verified on the other, and the `.sha512` has to match on both. CSVs
   from older versions still read correctly; the `?` in them was substituted when
   they were written and cannot be recovered
-- Renamed to `filechecker6_0.ps1`; v5.13 is in `Archive/`
+- Renamed to `filechecker6_1.ps1`; v5.13 is in `Archive/`
 
 ### v5.13
 
